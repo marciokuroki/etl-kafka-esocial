@@ -1,0 +1,13 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "eSocial PostgreSQL",
+      "Group": "POC",
+      "Host": "postgres-db",
+      "Port": 5432,
+      "MaintenanceDB": "esocial",
+      "Username": "esocial_user",
+      "SSLMode": "prefer"
+    }
+  }
+}

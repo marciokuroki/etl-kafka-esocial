@@ -1,0 +1,69 @@
+spring:
+  application:
+    name: producer-service
+  
+  datasource:
+    url: jdbc:postgresql://postgres-db:5432/esocial
+    username: esocial_user
+    password: PostgresPassword123!
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+  
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+  
+  kafka:
+    bootstrap-servers: kafka-broker-1:29092,kafka-broker-2:29092,kafka-broker-3:29092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+        compression.type: snappy
+        linger.ms: 10
+        batch.size: 16384
+
+server:
+  port: 8081
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    root: INFO
+    com.esocial.producer: DEBUG
+    org.springframework.kafka: INFO
+    org.hibernate.SQL: DEBUG
+
+app:
+  kafka:
+    topics:
+      employee-create: employee-create
+      employee-update: employee-update
+      employee-delete: employee-delete
+  cdc:
+    polling-interval: 5000
+    batch-size: 100

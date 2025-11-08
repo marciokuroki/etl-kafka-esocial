@@ -1,0 +1,475 @@
+# docker-compose.yml
+# POC - Sistema ETL com Kafka para Integração eSocial
+# Versão: 1.0
+
+version: '3.8'
+
+# ====================================
+# NETWORKS
+# ====================================
+networks:
+  esocial-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# ====================================
+# VOLUMES
+# ====================================
+volumes:
+  # Kafka & Zookeeper
+  zookeeper-data:
+  zookeeper-logs:
+  kafka-broker-1-data:
+  kafka-broker-2-data:
+  kafka-broker-3-data:
+  
+  # Bancos de Dados
+  oracle-data:
+  postgres-data:
+  
+  # Monitoramento
+  prometheus-data:
+  grafana-data:
+  elasticsearch-data:
+
+# ====================================
+# SERVICES
+# ====================================
+services:
+
+  # ====================================
+  # ZOOKEEPER (Coordenador do Kafka)
+  # ====================================
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: esocial-zookeeper
+    hostname: zookeeper
+    networks:
+      - esocial-network
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_INIT_LIMIT: 5
+      ZOOKEEPER_SYNC_LIMIT: 2
+      ZOOKEEPER_MAX_CLIENT_CNXNS: 60
+      ZOOKEEPER_4LW_COMMANDS_WHITELIST: "srvr,mntr,stat,ruok,conf,cons"
+    volumes:
+      - zookeeper-data:/var/lib/zookeeper/data
+      - zookeeper-logs:/var/lib/zookeeper/log
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo ruok | nc localhost 2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ====================================
+  # KAFKA BROKER 1
+  # ====================================
+  kafka-broker-1:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: esocial-kafka-broker-1
+    hostname: kafka-broker-1
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    networks:
+      - esocial-network
+    ports:
+      - "9092:9092"
+      - "19092:19092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-1:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 3
+      KAFKA_MIN_INSYNC_REPLICAS: 2
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_LOG_SEGMENT_BYTES: 1073741824
+      KAFKA_LOG_RETENTION_CHECK_INTERVAL_MS: 300000
+      KAFKA_JMX_PORT: 19092
+      KAFKA_JMX_HOSTNAME: kafka-broker-1
+    volumes:
+      - kafka-broker-1-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # ====================================
+  # KAFKA BROKER 2
+  # ====================================
+  kafka-broker-2:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: esocial-kafka-broker-2
+    hostname: kafka-broker-2
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    networks:
+      - esocial-network
+    ports:
+      - "9093:9093"
+      - "19093:19093"
+    environment:
+      KAFKA_BROKER_ID: 2
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-2:29092,PLAINTEXT_HOST://localhost:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 3
+      KAFKA_MIN_INSYNC_REPLICAS: 2
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_LOG_SEGMENT_BYTES: 1073741824
+      KAFKA_LOG_RETENTION_CHECK_INTERVAL_MS: 300000
+      KAFKA_JMX_PORT: 19093
+      KAFKA_JMX_HOSTNAME: kafka-broker-2
+    volumes:
+      - kafka-broker-2-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9093"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # ====================================
+  # KAFKA BROKER 3
+  # ====================================
+  kafka-broker-3:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: esocial-kafka-broker-3
+    hostname: kafka-broker-3
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    networks:
+      - esocial-network
+    ports:
+      - "9094:9094"
+      - "19094:19094"
+    environment:
+      KAFKA_BROKER_ID: 3
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-3:29092,PLAINTEXT_HOST://localhost:9094
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 3
+      KAFKA_MIN_INSYNC_REPLICAS: 2
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_LOG_SEGMENT_BYTES: 1073741824
+      KAFKA_LOG_RETENTION_CHECK_INTERVAL_MS: 300000
+      KAFKA_JMX_PORT: 19094
+      KAFKA_JMX_HOSTNAME: kafka-broker-3
+    volumes:
+      - kafka-broker-3-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9094"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # ====================================
+  # KAFKA UI (Interface Web)
+  # ====================================
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: esocial-kafka-ui
+    depends_on:
+      - kafka-broker-1
+      - kafka-broker-2
+      - kafka-broker-3
+    networks:
+      - esocial-network
+    ports:
+      - "8090:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: esocial-cluster
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka-broker-1:29092,kafka-broker-2:29092,kafka-broker-3:29092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+      KAFKA_CLUSTERS_0_METRICS_PORT: 19092
+      DYNAMIC_CONFIG_ENABLED: 'true'
+    restart: unless-stopped
+
+  # ====================================
+  # ORACLE DATABASE 19c (Sistema Origem)
+  # ====================================
+  oracle-db:
+    image: container-registry.oracle.com/database/express:21.3.0-xe
+    container_name: esocial-oracle-db
+    hostname: oracle-db
+    networks:
+      - esocial-network
+    ports:
+      - "1521:1521"
+      - "5500:5500"
+    environment:
+      ORACLE_PWD: ${ORACLE_PASSWORD:-OraclePassword123!}
+      ORACLE_CHARACTERSET: AL32UTF8
+    volumes:
+      - oracle-data:/opt/oracle/oradata
+      - ./scripts/oracle/init:/docker-entrypoint-initdb.d/startup
+      - ./scripts/oracle/setup:/docker-entrypoint-initdb.d/setup
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # ====================================
+  # POSTGRESQL 16 (Sistema Destino)
+  # ====================================
+  postgres-db:
+    image: postgres:16-alpine
+    container_name: esocial-postgres-db
+    hostname: postgres-db
+    networks:
+      - esocial-network
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-esocial}
+      POSTGRES_USER: ${POSTGRES_USER:-esocial_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-PostgresPassword123!}
+      POSTGRES_INITDB_ARGS: '--encoding=UTF-8 --lc-collate=C --lc-ctype=C'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./scripts/postgres/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U esocial_user -d esocial"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ====================================
+  # PGADMIN (Interface Web PostgreSQL)
+  # ====================================
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: esocial-pgadmin
+    depends_on:
+      - postgres-db
+    networks:
+      - esocial-network
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@esocial.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-PgAdminPassword123!}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    volumes:
+      - ./scripts/pgadmin/servers.json:/pgadmin4/servers.json
+    restart: unless-stopped
+
+  # ====================================
+  # PRODUCER SERVICE (Captura mudanças e publica no Kafka)
+  # ====================================
+  producer-service:
+    build:
+      context: ./producer-service
+      dockerfile: Dockerfile
+    image: esocial-producer:latest
+    container_name: esocial-producer
+    hostname: producer-service
+    depends_on:
+      kafka-broker-1:
+        condition: service_healthy
+      kafka-broker-2:
+        condition: service_healthy
+      kafka-broker-3:
+        condition: service_healthy
+      postgres-db:
+        condition: service_healthy
+    networks:
+      - esocial-network
+    ports:
+      - "8081:8081"
+    environment:
+      # Spring Profile
+      SPRING_PROFILES_ACTIVE: dev
+      
+      # PostgreSQL
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/esocial
+      SPRING_DATASOURCE_USERNAME: esocial_user
+      SPRING_DATASOURCE_PASSWORD: PostgresPassword123!
+      
+      # Kafka
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka-broker-1:29092,kafka-broker-2:29092,kafka-broker-3:29092
+      
+      # CDC Config
+      APP_CDC_POLLING_INTERVAL: 5000
+      APP_CDC_BATCH_SIZE: 100
+      
+      # Logging
+      LOGGING_LEVEL_ROOT: INFO
+      LOGGING_LEVEL_COM_ESOCIAL_PRODUCER: DEBUG
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  # ====================================
+  # CONSUMER SERVICE (Processa eventos e persiste)
+  # ====================================
+  consumer-service:
+    build:
+      context: ./consumer-service
+      dockerfile: Dockerfile
+    image: esocial-consumer:latest
+    container_name: esocial-consumer
+    hostname: consumer-service
+    depends_on:
+      kafka-broker-1:
+        condition: service_healthy
+      kafka-broker-2:
+        condition: service_healthy
+      kafka-broker-3:
+        condition: service_healthy
+      postgres-db:
+        condition: service_healthy
+      producer-service:
+        condition: service_started
+    networks:
+      - esocial-network
+    ports:
+      - "8082:8082"
+    environment:
+      # Spring Profile
+      SPRING_PROFILES_ACTIVE: dev
+      
+      # PostgreSQL
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/esocial
+      SPRING_DATASOURCE_USERNAME: esocial_user
+      SPRING_DATASOURCE_PASSWORD: PostgresPassword123!
+      
+      # Kafka
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka-broker-1:29092,kafka-broker-2:29092,kafka-broker-3:29092
+      SPRING_KAFKA_CONSUMER_GROUP_ID: esocial-consumer-group
+      
+      # Validation
+      APP_VALIDATION_ENABLED: 'true'
+      APP_VALIDATION_FAIL_ON_ERROR: 'false'
+      
+      # Logging
+      LOGGING_LEVEL_ROOT: INFO
+      LOGGING_LEVEL_COM_ESOCIAL_CONSUMER: DEBUG
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8082/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  # ====================================
+  # PROMETHEUS (Coleta de Métricas)
+  # ====================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: esocial-prometheus
+    networks:
+      - esocial-network
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    volumes:
+      - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    restart: unless-stopped
+
+  # ====================================
+  # GRAFANA (Dashboards de Monitoramento)
+  # ====================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: esocial-grafana
+    depends_on:
+      - prometheus
+    networks:
+      - esocial-network
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-GrafanaPassword123!}
+      GF_INSTALL_PLUGINS: 'grafana-clock-panel,grafana-simple-json-datasource'
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./config/grafana/provisioning:/etc/grafana/provisioning
+      - ./config/grafana/dashboards:/var/lib/grafana/dashboards
+    restart: unless-stopped
+
+  # ====================================
+  # ELASTICSEARCH (Armazenamento de Logs)
+  # ====================================
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: esocial-elasticsearch
+    networks:
+      - esocial-network
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    environment:
+      discovery.type: single-node
+      ES_JAVA_OPTS: '-Xms512m -Xmx512m'
+      xpack.security.enabled: 'false'
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # ====================================
+  # KIBANA (Visualização de Logs)
+  # ====================================
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: esocial-kibana
+    depends_on:
+      - elasticsearch
+    networks:
+      - esocial-network
+    ports:
+      - "5601:5601"
+    environment:
+      ELASTICSEARCH_HOSTS: '["http://elasticsearch:9200"]'
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5601/api/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
