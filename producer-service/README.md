@@ -1,4 +1,3 @@
-```markdown
 # Producer Service
 
 [![Tests](https://img.shields.io/badge/tests-18%20passed-brightgreen)]()
@@ -233,12 +232,12 @@ docker-compose logs -f producer-service
 
 ### Actuator
 
-| Endpoint | Descrição | Exemplo |
-|----------|-----------|---------|
-| `/actuator/health` | Status do serviço | `{"status":"UP"}` |
-| `/actuator/prometheus` | Métricas Prometheus | `events_published_total 150.0` |
-| `/actuator/info` | Informações da aplicação | `{"app":{"name":"producer-service"}}` |
-| `/actuator/metrics` | Métricas detalhadas | Lista de métricas disponíveis |
+| Endpoint               | Descrição                | Exemplo                               |
+|------------------------|--------------------------|---------------------------------------|
+| `/actuator/health`     | Status do serviço        | `{"status":"UP"}`                     |
+| `/actuator/prometheus` | Métricas Prometheus      | `events_published_total 150.0`        |
+| `/actuator/info`       | Informações da aplicação | `{"app":{"name":"producer-service"}}` |
+| `/actuator/metrics`    | Métricas detalhadas      | Lista de métricas disponíveis         |
 
 ### Testar Endpoints
 
@@ -415,7 +414,6 @@ curl http://localhost:8081/actuator/prometheus | grep events_published_total
 ## 📁 Estrutura do Projeto
 
 ```
-
 producer-service/
 ├── src/
 │   ├── main/
@@ -453,7 +451,6 @@ producer-service/
 ├── pom.xml                                         \# Dependências Maven
 ├── README.md                                       \# Este arquivo
 └── TESTING.md                                      \# Documentação de testes
-
 ```
 
 ## 🛠️ Tecnologias
@@ -514,4 +511,3 @@ Este projeto é parte do Trabalho de Conclusão de Curso (TCC) - Todos os direit
 **Última atualização:** 08 de novembro de 2025  
 **Versão:** 1.0.0  
 **Autor:** Márcio Kuroki Gonçalves
-```
