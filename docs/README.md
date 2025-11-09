@@ -88,8 +88,8 @@ Documentos PDF disponíveis (ver raiz do projeto):
 ## 📧 Contato
 
 **Autor:** Márcio Kuroki Gonçalves  
-**Instituição:** [Nome da Instituição]  
-**Orientador:** [Nome do Orientador]  
+**Instituição:** XP Educação
+**Orientador:** Reinaldo Galvão
 **Ano:** 2025
 
 ## 📄 Licença
