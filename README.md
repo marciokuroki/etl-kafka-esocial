@@ -624,5 +624,5 @@ chore: tarefas de manutenção
 | Containers | 14 |
 | Serviços Spring Boot | 2 |
 | ADRs Documentados | 5 |
-| Duração Sprint 1 | 4 semanas |
+| Duração Sprint 1 | 1 semana |
 | Commits | 150+ |
