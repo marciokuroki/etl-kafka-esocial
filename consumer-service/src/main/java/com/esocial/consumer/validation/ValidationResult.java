@@ -1,51 +1,40 @@
 package com.esocial.consumer.validation;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
 import java.util.ArrayList;
 import java.util.List;
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
 public class ValidationResult {
-    
-    private boolean valid;
-    
-    @Builder.Default
-    private List<ValidationError> errors = new ArrayList<>();
-    
-    @Builder.Default
-    private List<ValidationError> warnings = new ArrayList<>();
-    
-    public void addError(String rule, String message, String fieldName, String fieldValue) {
-        errors.add(new ValidationError(rule, message, "ERROR", fieldName, fieldValue));
-        valid = false;
+    private final List<ValidationErrorDTO> errors = new ArrayList<>();
+    private final List<ValidationErrorDTO> warnings = new ArrayList<>();
+    private boolean valid = true;
+
+    public void addError(String ruleId, ValidationSeverity severity, String message, String field, Object value) {
+        ValidationErrorDTO ve = new ValidationErrorDTO(ruleId, severity, message, field, value);
+        if (severity == ValidationSeverity.ERROR) {
+            errors.add(ve);
+            valid = false;
+        } else if (severity == ValidationSeverity.WARNING) {
+            warnings.add(ve);
+        }
     }
-    
-    public void addWarning(String rule, String message, String fieldName, String fieldValue) {
-        warnings.add(new ValidationError(rule, message, "WARNING", fieldName, fieldValue));
+
+    public List<ValidationErrorDTO> getErrors() {
+        return errors;
     }
-    
+
+    public List<ValidationErrorDTO> getWarnings() {
+        return warnings;
+    }
+
     public boolean hasErrors() {
         return !errors.isEmpty();
     }
-    
+
     public boolean hasWarnings() {
         return !warnings.isEmpty();
     }
-    
-    @Data
-    @AllArgsConstructor
-    public static class ValidationError {
-        private String rule;
-        private String message;
-        private String severity;
-        private String fieldName;
-        private String fieldValue;
+
+    public boolean isValid() {
+        return valid;
     }
 }

@@ -2,6 +2,9 @@ package com.esocial.consumer.validation.rules;
 
 import com.esocial.consumer.model.dto.EmployeeEventDTO;
 import com.esocial.consumer.validation.ValidationResult;
+import com.esocial.consumer.validation.ValidationRule;
+import com.esocial.consumer.validation.ValidationSeverity;
+
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -15,36 +18,49 @@ public class StructuralValidationRule implements ValidationRule {
         
         // Validar campos obrigatórios
         if (event.getEmployeeId() == null || event.getEmployeeId().isBlank()) {
-            result.addError(getRuleName(), "ID do colaborador é obrigatório", "employeeId", null);
+            result.addError(getRuleId(), 
+                ValidationSeverity.ERROR,
+                "ID do colaborador é obrigatório", 
+                "employeeId", 
+                null);
         }
         
         if (event.getCpf() == null || event.getCpf().isBlank()) {
-            result.addError(getRuleName(), "CPF é obrigatório", "cpf", null);
+            result.addError(getRuleId(), 
+                ValidationSeverity.ERROR,
+                "CPF é obrigatório", 
+                "cpf", 
+                null);
         }
         
         if (event.getFullName() == null || event.getFullName().isBlank()) {
-            result.addError(getRuleName(), "Nome completo é obrigatório", "fullName", null);
+            result.addError(getRuleId(), 
+                ValidationSeverity.ERROR, "Nome completo é obrigatório", "fullName", null);
         }
         
         if (event.getAdmissionDate() == null) {
-            result.addError(getRuleName(), "Data de admissão é obrigatória", "admissionDate", null);
+            result.addError(getRuleId(), 
+                ValidationSeverity.ERROR, "Data de admissão é obrigatória", "admissionDate", null);
         }
         
         // Validar formato CPF (11 dígitos)
         if (event.getCpf() != null && !event.getCpf().matches("\\d{11}")) {
-            result.addError(getRuleName(), "CPF deve conter exatamente 11 dígitos numéricos", 
+            result.addError(getRuleId(), 
+                ValidationSeverity.ERROR, "CPF deve conter exatamente 11 dígitos numéricos", 
                     "cpf", event.getCpf());
         }
         
         // Validar formato PIS (11 dígitos, se informado)
         if (event.getPis() != null && !event.getPis().isBlank() && !event.getPis().matches("\\d{11}")) {
-            result.addError(getRuleName(), "PIS deve conter exatamente 11 dígitos numéricos", 
+            result.addError(getRuleId(), 
+                ValidationSeverity.ERROR, "PIS deve conter exatamente 11 dígitos numéricos", 
                     "pis", event.getPis());
         }
         
         // Validar salário (deve ser positivo)
         if (event.getSalary() != null && event.getSalary().doubleValue() <= 0) {
-            result.addError(getRuleName(), "Salário deve ser maior que zero", 
+            result.addError(getRuleId(), 
+                ValidationSeverity.ERROR, "Salário deve ser maior que zero", 
                     "salary", event.getSalary().toString());
         }
         
@@ -53,7 +69,7 @@ public class StructuralValidationRule implements ValidationRule {
     }
     
     @Override
-    public String getRuleName() {
+    public String getRuleId() {
         return "STRUCTURAL_VALIDATION";
     }
 }

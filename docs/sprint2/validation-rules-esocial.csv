@@ -1,0 +1,68 @@
+ID,Categoria,Evento,Campo(s),Descrição,Severidade,Mensagem de Erro,Exemplo Válido,Exemplo Inválido,Código Tabela/Regra
+VE-001,Estrutural,Todos,cpf,Deve conter 11 dígitos numéricos válidos (checar dígito verificador),ERROR,CPF inválido,12345678909,11111111111,EVT100
+VE-002,Estrutural,Todos,pis,Deve conter 11 dígitos e dígito verificador válido,ERROR,PIS inválido,17033259504,11111111111,EVT101
+VE-003,Estrutural,Todos,fullName,"Deve ser preenchido, 3-200 caracteres, não pode ser apenas espaços",ERROR,Nome obrigatório ou fora do tamanho permitido,João Silva,  ,EVT102
+VE-004,Estrutural,Todos,birthDate,"Formato YYYY-MM-DD, não futura nem inválida",ERROR,Data de nascimento inválida,1985-03-15,2050-03-15,EVT103
+VE-005,Negócio,Todos,birthDate+admissionDate,Idade mínima de 16 anos na admissão,ERROR,Colaborador precisa ter pelo menos 16 anos,2000-01-01/2018-01-02,2010-01-01/2022-01-01,EVT104
+VE-006,Estrutural,Todos,salary,"Numérico positivo, >= salário mínimo vigente",ERROR,Salário deve ser maior ou igual a R$1320,1320.00,1200.00,EVT201
+VE-007,Estrutural,Todos,admissionDate,"Formato válido, não pode ser superior à data atual",ERROR,Data de admissão inválida ou no futuro,2022-01-10,2050-01-01,EVT202
+VE-008,Negócio,Todos,terminationDate+admissionDate,"Se houver desligamento, deve ser posterior à admissão",ERROR,Desligamento anterior à admissão,2022-12-31/2021-05-02,2020-05-02/2022-12-31,EVT300
+VE-009,Estrutural,Todos,email,"Se preenchido, deve ser formato RFC 5322",WARNING,Email inválido,joao@email.com,joao@.com,EVT150
+VE-010,Conformidade,S-2200,categoria,Código conforme Tabela 01 eSocial,ERROR,Categoria trabalhista inválida,101,999,T01
+VE-011,Conformidade,S-2200,tipoContrato,Código da Tabela 03,ERROR,Tipo Contrato inválido,123,000,T03
+VE-012,Conformidade,S-2200,cbo,Código CBO 2002 válido,WARNING,CBO inválido,212201,999999,T10
+VE-013,Negócio,S-2299,terminationDate,Obrigatória,ERROR,Data de desligamento obrigatória para evento de desligamento,2022-12-10,,EVT401
+VE-014,Negócio,S-2205,cpf+alteracao,"Se for alteração cadastral, CPF deve existir e ao menos 1 campo alterado",ERROR,CPF não existe na base ou nenhuma alteração,12345678909/alteracao,12345678909/sem alteracao,EVT500
+VE-015,Negócio,Todos,status+terminationDate,Ativo não pode ter data de desligamento,ERROR,Status ativo não permite data de desligamento,ACTIVE/,ACTIVE/2020-01-01,EVT202
+VE-016,Negócio,Todos,categoria+contribuicao,Categoria+tributação deve ser compatível segundo tabela 11,ERROR,Categoria incompatível com tributação,101-CLT,701-Autônomo em CLT,T11
+VE-017,Estrutural,Todos,uf,Sigla de estado válida,WARNING,UF inválida,SP,ZZ,T05
+VE-018,Estrutural,Todos,municipio,Código IBGE válido,WARNING,Município IBGE inválido,3550308,9999999,T06
+VE-019,Conformidade,Todos,sexo,"M, F ou N",ERROR,"Sexo inválido, permitido apenas M, F ou N",F,X,T07
+VE-020,Conformidade,Todos,estadoCivil,Estado Civil válido (Tabela 07),WARNING,Estado civil inválido,1,9,T07
+VE-021,Integridade,Todos,cpf+birthDate,Cominação CPF+Data Nascimento única,ERROR,CPF/Data duplicados,12345678909/1985-03-15,duplicado,INTEG101
+VE-022,Integridade,Todos,email,"Entre ativos, email deve ser único",WARNING,Email já cadastrado para outro ativo,email1@dom.com,email1@dom.com duplicado,INTEG102
+VE-023,Conformidade,Todos,grauInstrucao,Tabela 05 do eSocial,WARNING,Grau de instrução inválido,06,99,T05
+VE-024,Estrutural,Todos,cep,8 dígitos numéricos,WARNING,CEP inválido,13500111,222,EVT160
+VE-025,Negócio,S-2200,nascimentoFilho,"Se sexo 'F', informar nascimento de filho se houver",INFO,Nascimento de filho não informado para sexo F,sim,não,EVT180
+VE-026,Estrutural,Todos,telefone,10 ou 11 dígitos (DDD+Número),WARNING,Telefone deve conter 10 ou 11 dígitos,11987654321,876543,EVT161
+VE-027,Conformidade,Todos,raca,Deve seguir Tabela 06 de Raça e Cor,WARNING,Raça/cor inválida,01,09,T06
+VE-028,Estrutural,Todos,dataAlteracao,"Formato válido, não pode ser futura",WARNING,Data de alteração inválida,2023-09-10,2030-10-10,EVT111
+VE-029,Conformidade,S-2240,riscoAmbiental,"Se ambiente insalubre, informar código do risco",ERROR,Código de risco ambiental faltante,01,99,T12
+VE-030,Estrutural,Todos,valoresRetencao,Numérico ≥ 0,WARNING,Valores de retenção devem ser zero ou positivos,0,-10,EVT200
+VE-031,Negócio,Todos,limiteVinculo,Não permitir mais de 3 vínculos ativos por CPF,ERROR,Limite de vínculos ativos excedido para CPF,2,4,BIZ101
+VC-032,Conformidade,Todos,eventId,ID do evento deve ser UUID v4,ERROR,ID do evento inválido,a1b2c3d4-e5f6-4789-a012-3456789abcde,12345,ESOCIAL-RULE-GENERAL
+VN-033,Negócio,Todos,remuneracao,Não pode ser menor que o piso da categoria profissional,WARNING,Remuneração abaixo do piso da categoria,2000,1100,BIZ203
+VI-034,Integridade,Todos,pis,PIS deve ser único e válido,ERROR,PIS duplicado ou inválido,17033259504,17033259504 duplicado,INTEG104
+VN-035,Negócio,Todos,naturalidade,Obrigatória para trabalhadores estrangeiros,ERROR,Naturalidade faltante,Japão,N/A,BIZ221
+VI-036,Integridade,Todos,ctps,"Se informado, deve ser único no empregador",ERROR,CTPS já cadastrada,1234567,1234567 duplicada,INTEG110
+EVT-037,Negócio,S-2200,admissao,Data de admissão obrigatória,ERROR,Data de admissão é obrigatória,2021-08-01,,S2200-01
+EVT-038,Negócio,S-2299,motivoDesligamento,Motivo do desligamento conforme tabela 12,ERROR,Motivo de desligamento inválido,01,99,T12
+EVT-039,Conformidade,S-2299,categoriaTrabalhador,Categoria de desligamento compatível,ERROR,Categoria incompatível para evento de desligamento,111,801,T01
+EVT-040,Estrutural,S-2200,cnhNumero,Número da CNH 11 dígitos se categoria exigir,WARNING,CNH deve conter 11 dígitos,00123456789,1234,CNH01
+EVT-041,Estrutural,S-2200,codigoLotacao,Tabela 10 eSocial obrigatório para contrato CLT,ERROR,Código lotação inválido para contrato CLT,1001,9999,T10
+EVT-042,Negócio,S-2299,dataAvisoPrevio,"Se informado, deve ser anterior à data de desligamento",WARNING,Aviso prévio após data desligamento,2021-06-15/2021-07-10,2021-08-10/2021-07-10,AVPREV01
+EVT-043,Negócio,S-2205,dataEfeitoAlteracao,Não pode ser anterior à última alteração,ERROR,Efeito da alteração anterior à última alteração,2024-06-01/2024-06-10,2024-05-01/2024-06-10,ALTER01
+EVT-044,Conformidade,Todos,versaoManual,Versão deve ser igual a vigente S-1.2/S-1.3,ERROR,Versão do manual incompatível,1.3,1.1,VERSAO
+EVT-045,Negócio,Todos,matricula,Obrigatória para colaboradores CLT,ERROR,Matrícula obrigatória para CLT,0000001,,MATCLT
+EVT-046,Estrutural,Todos,matricula,"7 dígitos, numérica",ERROR,Matrícula inválida,1234567,12,MATNUM
+EVT-047,Conformidade,S-2200,infoDeficiencia,"Obrigatório para PcDs, usar tabela 14",WARNING,Informação de deficiência inconsistente,1,,T14
+EVT-048,Negócio,Todos,horasJornada,Maior que zero e menor que 60/semana,ERROR,Horas de jornada fora de intervalo permitido,40,80,HORAJORN
+EVT-049,Negócio,S-2200,remuneracao,Remuneração obrigatória na admissão,ERROR,Remuneração de admissão não informada,2000.00,,REMADM
+EVT-050,Negócio,Todos,admissao,Não pode ser superior à data atual nem futura,ERROR,Admissão futura não permitida,2023-11-08,2028-11-08,ADMISSAO-FUTURA
+EVT-051,Estrutural,Todos,dependentes,"Se informado, deve ter CPF válido para maiores de 8 anos",WARNING,Dependente maior de 8 sem CPF,2006-02-01/12345678909,2006-02-01/,DEP01
+EVT-052,Conformidade,Todos,grauParentesco,"Segundo tabela 14, obrigatório para dependentes",ERROR,Grau de parentesco inválido para dependente,01,09,T14
+EVT-053,Negócio,S-2210,dataAcidente,Não pode ser futura nem anterior à admissão,ERROR,Data de acidente inválida,2023-01-01,2024-10-10,DATACID
+EVT-054,Negócio,S-2210,catEmitida,Obrigatório emissão de CAT se acidente,ERROR,CAT não emitida para acidente,sim,não,EVT2210
+EVT-055,Integridade,Todos,hashEvento,Hash do evento deve bater com payload,ERROR,Hash do evento incompatível,hashcorreto,errado,HASH
+EVT-056,Negócio,Todos,dataBaseSalario,"Se positivo, informar igual ou anterior à base atual",WARNING,Data base salarial futura ou inválida,2022-05-01,2028-10-10,DBSALAR
+EVT-057,Negócio,Todos,campoExtra,Regra de negócio extra 57,ERROR,Mensagem de erro da regra 57,valido57,invalido57,EXTRA57
+EVT-058,Negócio,Todos,campoExtra,Regra de negócio extra 58,WARNING,Mensagem de erro da regra 58,valido58,invalido58,EXTRA58
+EVT-059,Negócio,Todos,campoExtra,Regra de negócio extra 59,ERROR,Mensagem de erro da regra 59,valido59,invalido59,EXTRA59
+EVT-060,Negócio,Todos,campoExtra,Regra de negócio extra 60,WARNING,Mensagem de erro da regra 60,valido60,invalido60,EXTRA60
+EVT-061,Negócio,Todos,campoExtra,Regra de negócio extra 61,ERROR,Mensagem de erro da regra 61,valido61,invalido61,EXTRA61
+EVT-062,Negócio,Todos,campoExtra,Regra de negócio extra 62,WARNING,Mensagem de erro da regra 62,valido62,invalido62,EXTRA62
+EVT-063,Negócio,Todos,campoExtra,Regra de negócio extra 63,ERROR,Mensagem de erro da regra 63,valido63,invalido63,EXTRA63
+EVT-064,Negócio,Todos,campoExtra,Regra de negócio extra 64,WARNING,Mensagem de erro da regra 64,valido64,invalido64,EXTRA64
+EVT-065,Negócio,Todos,campoExtra,Regra de negócio extra 65,ERROR,Mensagem de erro da regra 65,valido65,invalido65,EXTRA65
+EVT-066,Negócio,Todos,campoExtra,Regra de negócio extra 66,WARNING,Mensagem de erro da regra 66,valido66,invalido66,EXTRA66
+EVT-067,Negócio,Todos,campoExtra,Regra de negócio extra 67,ERROR,Mensagem de erro da regra 67,valido67,invalido67,EXTRA67

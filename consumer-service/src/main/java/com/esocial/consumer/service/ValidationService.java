@@ -5,12 +5,15 @@ import com.esocial.consumer.model.entity.ValidationError;
 import com.esocial.consumer.repository.ValidationErrorRepository;
 import com.esocial.consumer.validation.ValidationEngine;
 import com.esocial.consumer.validation.ValidationResult;
+import com.esocial.consumer.validation.ValidationErrorDTO;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Slf4j
 @Service
@@ -41,7 +44,8 @@ public class ValidationService {
     }
     
     /**
-     * Valida um evento e persiste erros encontrados
+     * Valida um evento e persiste erros e warnings encontrados.
+     * Registra métrica de sucesso ou falha.
      */
     @Transactional
     public ValidationResult validateAndPersistErrors(EmployeeEventDTO event, 
@@ -73,16 +77,16 @@ public class ValidationService {
         try {
             String eventPayload = objectMapper.writeValueAsString(event);
             
-            for (ValidationResult.ValidationError error : result.getErrors()) {
+            for (ValidationErrorDTO error : result.getErrors()) {
                 ValidationError entity = ValidationError.builder()
                         .eventId(event.getEventId())
                         .sourceTable("employees")
                         .sourceId(event.getEmployeeId())
-                        .validationRule(error.getRule())
+                        .validationRule(error.getRuleId())
                         .errorMessage(error.getMessage())
-                        .severity(error.getSeverity())
-                        .fieldName(error.getFieldName())
-                        .fieldValue(error.getFieldValue())
+                        .severity(error.getSeverity().name())
+                        .fieldName(error.getField())
+                        .fieldValue(error.getValue() != null ? error.getValue().toString() : null)
                         .eventPayload(eventPayload)
                         .kafkaOffset(kafkaOffset)
                         .kafkaPartition(kafkaPartition)
@@ -108,16 +112,16 @@ public class ValidationService {
         try {
             String eventPayload = objectMapper.writeValueAsString(event);
             
-            for (ValidationResult.ValidationError warning : result.getWarnings()) {
+            for (ValidationErrorDTO warning : result.getWarnings()) {
                 ValidationError entity = ValidationError.builder()
                         .eventId(event.getEventId())
                         .sourceTable("employees")
                         .sourceId(event.getEmployeeId())
-                        .validationRule(warning.getRule())
+                        .validationRule(warning.getRuleId())
                         .errorMessage(warning.getMessage())
-                        .severity(warning.getSeverity())
-                        .fieldName(warning.getFieldName())
-                        .fieldValue(warning.getFieldValue())
+                        .severity(warning.getSeverity().name())
+                        .fieldName(warning.getField())
+                        .fieldValue(warning.getValue() != null ? warning.getValue().toString() : null)
                         .eventPayload(eventPayload)
                         .kafkaOffset(kafkaOffset)
                         .kafkaPartition(kafkaPartition)
