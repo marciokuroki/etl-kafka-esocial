@@ -1,7 +1,6 @@
 package com.esocial.consumer.service;
 
 import com.esocial.consumer.model.dto.EmployeeEventDTO;
-import com.esocial.consumer.model.dto.EventType;
 import com.esocial.consumer.model.entity.Employee;
 import com.esocial.consumer.model.entity.EmployeeHistory;
 import com.esocial.consumer.repository.EmployeeHistoryRepository;
@@ -52,17 +51,39 @@ public class PersistenceService {
         log.debug("Persistindo evento: {} (tipo: {})", event.getEventId(), event.getEventType());
         
         switch (event.getEventType()) {
-            case CREATE -> createEmployee(event, kafkaOffset, kafkaPartition, kafkaTopic);
-            case UPDATE -> updateEmployee(event, kafkaOffset, kafkaPartition, kafkaTopic);
-            case DELETE -> deleteEmployee(event, kafkaOffset, kafkaPartition, kafkaTopic);
+            case "S-2300", "S-2306" -> { 
+                // S-2300: Admissão de Trabalhador
+                // S-2306: Admissão de Aprendiz
+                log.info("CREATE: Processando admissão - sourceId={}", event.getSourceId());
+                createEmployee(event, kafkaOffset, kafkaPartition, kafkaTopic);
+            }
+            
+            case "S-2400", "S-2405", "S-2410" -> { 
+                // S-2400: Alterações Contratuais
+                // S-2405: Alteração de Aprendiz
+                // S-2410: Remuneração
+                log.info("UPDATE: Processando alteração - sourceId={}", event.getSourceId());
+                updateEmployee(event, kafkaOffset, kafkaPartition, kafkaTopic);
+            }
+            
+            case "S-2420", "S-3000" -> { 
+                // S-2420: Desligamento de Trabalhador
+                // S-3000: Exclusão de Evento
+                log.info("DELETE: Processando desligamento - sourceId={}", event.getSourceId());
+                deleteEmployee(event, kafkaOffset, kafkaPartition, kafkaTopic);
+            }
+            
+            default -> {
+                log.warn("Tipo de evento não suportado: {}", event.getEventType());
+            }
         }
     }
     
     private void createEmployee(EmployeeEventDTO event, Long kafkaOffset, Integer kafkaPartition, String kafkaTopic) {
         // Verificar se já existe
-        if (employeeRepository.existsBySourceId(event.getEmployeeId())) {
+        if (employeeRepository.existsBySourceId(event.getSourceId())) {
             log.warn("Colaborador com sourceId {} já existe. Atualizando ao invés de criar.", 
-                    event.getEmployeeId());
+                    event.getSourceId());
             updateEmployee(event, kafkaOffset, kafkaPartition, kafkaTopic);
             return;
         }
@@ -78,11 +99,11 @@ public class PersistenceService {
     }
     
     private void updateEmployee(EmployeeEventDTO event, Long kafkaOffset, Integer kafkaPartition, String kafkaTopic) {
-        Optional<Employee> existingOpt = employeeRepository.findBySourceId(event.getEmployeeId());
+        Optional<Employee> existingOpt = employeeRepository.findBySourceId(event.getSourceId());
         
         if (existingOpt.isEmpty()) {
             log.warn("Colaborador com sourceId {} não encontrado para atualização. Criando novo registro.", 
-                    event.getEmployeeId());
+                    event.getSourceId());
             createEmployee(event, kafkaOffset, kafkaPartition, kafkaTopic);
             return;
         }
@@ -100,10 +121,10 @@ public class PersistenceService {
     }
     
     private void deleteEmployee(EmployeeEventDTO event, Long kafkaOffset, Integer kafkaPartition, String kafkaTopic) {
-        Optional<Employee> existingOpt = employeeRepository.findBySourceId(event.getEmployeeId());
+        Optional<Employee> existingOpt = employeeRepository.findBySourceId(event.getSourceId());
         
         if (existingOpt.isEmpty()) {
-            log.warn("Colaborador com sourceId {} não encontrado para deleção.", event.getEmployeeId());
+            log.warn("Colaborador com sourceId {} não encontrado para deleção.", event.getSourceId());
             return;
         }
         
@@ -128,7 +149,7 @@ public class PersistenceService {
     
     private Employee convertDTOToEntity(EmployeeEventDTO dto, Long kafkaOffset, Integer kafkaPartition, String kafkaTopic) {
         return Employee.builder()
-                .sourceId(dto.getEmployeeId())
+                .sourceId(dto.getSourceId())
                 .cpf(dto.getCpf())
                 .pis(dto.getPis())
                 .fullName(dto.getFullName())

@@ -13,8 +13,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-
 @Slf4j
 @Service
 public class ValidationService {
@@ -81,7 +79,7 @@ public class ValidationService {
                 ValidationError entity = ValidationError.builder()
                         .eventId(event.getEventId())
                         .sourceTable("employees")
-                        .sourceId(event.getEmployeeId())
+                        .sourceId(event.getSourceId())
                         .validationRule(error.getRuleId())
                         .errorMessage(error.getMessage())
                         .severity(error.getSeverity().name())
@@ -116,7 +114,7 @@ public class ValidationService {
                 ValidationError entity = ValidationError.builder()
                         .eventId(event.getEventId())
                         .sourceTable("employees")
-                        .sourceId(event.getEmployeeId())
+                        .sourceId(event.getSourceId())
                         .validationRule(warning.getRuleId())
                         .errorMessage(warning.getMessage())
                         .severity(warning.getSeverity().name())

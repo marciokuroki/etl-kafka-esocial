@@ -16,7 +16,7 @@ public class ValidationResultTest {
     @Test
     public void addWarningShouldNotMarkInvalid() {
         ValidationResult result = new ValidationResult();
-        result.addWarning("Rule2", ValidationSeverity.WARNING, "Warning message", "field", "value");
+        result.addError("Rule2", ValidationSeverity.WARNING, "Warning message", "field", "value");
         assertThat(result.isValid()).isTrue();
         assertThat(result.hasWarnings()).isTrue();
     }

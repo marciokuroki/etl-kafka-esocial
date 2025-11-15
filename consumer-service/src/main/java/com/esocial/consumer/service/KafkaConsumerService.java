@@ -126,9 +126,9 @@ public class KafkaConsumerService {
             
             DlqEvent dlqEvent = DlqEvent.builder()
                     .eventId(event.getEventId())
-                    .eventType(event.getEventType().name())
+                    .eventType(event.getEventType())
                     .sourceTable("employees")
-                    .sourceId(event.getEmployeeId())
+                    .sourceId(event.getSourceId())
                     .eventPayload(eventPayload)
                     .errorMessage(exception.getMessage())
                     .stackTrace(stackTrace)
