@@ -485,6 +485,32 @@ Coverage: 82%
 
 ```
 
+### Gerar Carga de Teste Automaticamente
+#### Gerar 10 eventos (CREATE + UPDATE + DELETE)
+```
+./scripts/load-test/generate-test-data.sh 10
+```
+#### Gerar 50 eventos
+```
+./scripts/load-test/generate-test-data.sh 50
+```
+#### Gerar 100 eventos
+```
+./scripts/load-test/generate-test-data.sh 100
+```
+
+### Validar Métricas Manualmente
+#### Producer
+```
+curl http://localhost:8081/actuator/prometheus | grep events_published
+```
+
+#### Consumer
+```
+curl http://localhost:8082/actuator/prometheus | grep events_consumed
+```
+
+
 ### Executar Testes do Consumer (Sprint 2)
 
 ```

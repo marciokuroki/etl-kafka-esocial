@@ -14,4 +14,6 @@ public interface DlqEventRepository extends JpaRepository<DlqEvent, Long> {
     List<DlqEvent> findByEventId(String eventId);
 
     List<DlqEvent> findByStatusAndRetryCountLessThan(String status, int maxRetry);
+
+    long countByStatus(String status);
 }

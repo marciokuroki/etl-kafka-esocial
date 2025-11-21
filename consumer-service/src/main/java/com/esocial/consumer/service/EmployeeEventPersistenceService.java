@@ -218,7 +218,7 @@ public class EmployeeEventPersistenceService {
             existing.setVersion((existing.getVersion() != null ? existing.getVersion() : 0) + 1);
             
             // 4. Salvar alterações
-            Employee updatsetUpdatedAted = employeeRepository.save(existing);
+            Employee updated = employeeRepository.save(existing);
             log.info("DELETE concluído com sucesso: id={}, sourceId={}, status=INACTIVE, terminationDate={}", 
                 updated.getId(), updated.getSourceId(), updated.getTerminationDate());
             
