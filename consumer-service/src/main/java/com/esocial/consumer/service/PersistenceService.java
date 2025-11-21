@@ -212,4 +212,8 @@ public class PersistenceService {
         employeeHistoryRepository.save(history);
         log.debug("Registro de histórico criado: operation={}, employeeId={}", operation, employee.getId());
     }
+
+    public Optional<Employee> findEmployeeBySourceId(String sourceId) {
+        return employeeRepository.findBySourceId(sourceId);
+    }
 }

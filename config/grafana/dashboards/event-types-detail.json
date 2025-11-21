@@ -1,0 +1,59 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "description": "Detalhamento das métricas por tipo e severidade do evento",
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 0,
+  "id": null,
+  "iteration": 1627304734166,
+  "links": [],
+  "panels": [
+    {
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "id": 1,
+      "legend": { "show": true },
+      "targets": [
+        {
+          "expr": "sum by (event_type) (rate(events_published_total{service=\"producer\"}[5m]))",
+          "legendFormat": "Published - {{event_type}}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum by (event_type) (rate(events_consumed_total{service=\"consumer\"}[5m]))",
+          "legendFormat": "Consumed - {{event_type}}",
+          "refId": "B"
+        }
+      ],
+      "title": "Eventos por Tipo - Producer e Consumer",
+      "type": "graph"
+    },
+    {
+      "datasource": "Prometheus",
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 0 },
+      "id": 2,
+      "legend": { "show": true },
+      "targets": [
+        {
+          "expr": "sum by (severity) (rate(validation_failure_total{service=\"consumer\"}[5m]))",
+          "legendFormat": "Falhas de Validação - {{severity}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Falhas de Validação por Severidade",
+      "type": "graph"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 30,
+  "style": "dark",
+  "tags": ["pipeline", "detail"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timezone": "browser",
+  "title": "eSocial Pipeline - Detalhamento por Evento",
+  "uid": "event-types-detail",
+  "version": 1
+}

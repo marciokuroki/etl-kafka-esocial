@@ -1,0 +1,62 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "description": "Análise detalhada das validações e erros no pipeline",
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 0,
+  "id": null,
+  "iteration": 1627304795123,
+  "links": [],
+  "panels": [
+    {
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "id": 1,
+      "legend": { "show": true },
+      "targets": [
+        {
+          "expr": "rate(validation_failure_total{service=\"consumer\",severity=\"ERROR\"}[5m])",
+          "legendFormat": "Falhas de Validação (Erros)",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(validation_failure_total{service=\"consumer\",severity=\"WARNING\"}[5m])",
+          "legendFormat": "Falhas de Validação (Warnings)",
+          "refId": "B"
+        }
+      ],
+      "title": "Falhas de Validação por Severidade",
+      "type": "graph"
+    },
+    {
+      "datasource": "Prometheus",
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 8 },
+      "id": 2,
+      "legend": { "show": true },
+      "options": { "orientation": "auto", "reduceOptions": {}, "showUnfilled": true },
+      "pluginVersion": "8.0.0",
+      "targets": [
+        {
+          "expr": "dlq_events_pending{service=\"consumer\",severity=\"high\"}",
+          "legendFormat": "Eventos Pendentes na DLQ",
+          "refId": "A"
+        }
+      ],
+      "title": "Eventos Pendentes na DLQ",
+      "type": "singlestat",
+      "valueName": "current"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 30,
+  "style": "dark",
+  "tags": ["pipeline", "validation"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timezone": "browser",
+  "title": "eSocial Pipeline - Validação e Erros",
+  "uid": "validation-errors",
+  "version": 1
+}
