@@ -16,7 +16,7 @@ alerting:
 
 # Rules
 rule_files:
-  # - "alerts.yml"
+  - "alerts.yml"
 
 # Scrape configs
 scrape_configs:
@@ -32,15 +32,20 @@ scrape_configs:
           - 'kafka-broker-1:19092'
           - 'kafka-broker-2:19093'
           - 'kafka-broker-3:19094'
+    scrape_interval: 30s
 
   # Producer Service (quando implementado)
   - job_name: 'producer-service'
     metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
     static_configs:
-      - targets: ['producer-service:8080']
+      - targets: ['producer-service:8081']
+    scrape_timeout: 5s
 
   # Consumer Service (quando implementado)
   - job_name: 'consumer-service'
     metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
     static_configs:
-      - targets: ['consumer-service:8080']
+      - targets: ['consumer-service:8082']
+    scrape_timeout: 5s

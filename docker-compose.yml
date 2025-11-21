@@ -400,10 +400,12 @@ services:
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
       - '--web.console.templates=/usr/share/prometheus/consoles'
     volumes:
       - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./config/prometheus/alerts.yml:/etc/prometheus/alerts.yml
       - prometheus-data:/prometheus
     restart: unless-stopped
 

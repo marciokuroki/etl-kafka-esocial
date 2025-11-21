@@ -1,0 +1,174 @@
+# Regras de alerta do Prometheus para monitoramento do pipeline eSocial
+
+groups:
+  # ========================================
+  # GRUPO 1: Alertas Críticos do Producer
+  # ========================================
+  - name: producer_critical_alerts
+    interval: 30s
+    rules:
+      - alert: ProducerHighErrorRate
+        expr: |
+          rate(events_failed_total{service="producer"}[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          component: producer
+        annotations:
+          summary: "Producer com alta taxa de erro"
+          description: "Taxa de erro no Producer: {{ $value | humanizePercentage }} (limite: 5%)"
+          runbook_url: "https://github.com/marciokuroki/etl-kafka-esocial/blob/main/docs/runbooks/producer-high-error-rate.md"
+
+      - alert: ProducerServiceDown
+        expr: |
+          up{job="producer-service"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: producer
+        annotations:
+          summary: "Producer Service indisponível"
+          description: "Producer Service não está respondendo há {{ $value }} minutos"
+
+      - alert: CDCHighLatency
+        expr: |
+          histogram_quantile(0.95, rate(cdc_polling_duration_seconds_bucket{service="producer"}[5m])) > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: producer-cdc
+        annotations:
+          summary: "CDC com latência elevada"
+          description: "P95 do CDC: {{ $value }}s (limite: 10s)"
+
+  # ========================================
+  # GRUPO 2: Alertas Críticos do Consumer
+  # ========================================
+  - name: consumer_critical_alerts
+    interval: 30s
+    rules:
+      - alert: ConsumerHighErrorRate
+        expr: |
+          (
+            rate(validation_failure_total{service="consumer",severity="ERROR"}[5m]) 
+            / 
+            rate(events_consumed_total{service="consumer"}[5m])
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          component: consumer
+        annotations:
+          summary: "Consumer com alta taxa de erro de validação"
+          description: "Taxa de erro: {{ $value | humanizePercentage }} (limite: 5%)"
+
+      - alert: ConsumerServiceDown
+        expr: |
+          up{job="consumer-service"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: consumer
+        annotations:
+          summary: "Consumer Service indisponível"
+          description: "Consumer Service não está respondendo"
+
+      - alert: DLQAccumulating
+        expr: |
+          dlq_events_pending{service="consumer",severity="high"} > 100
+        for: 10m
+        labels:
+          severity: warning
+          component: consumer-dlq
+        annotations:
+          summary: "DLQ com eventos acumulados"
+          description: "{{ $value }} eventos pendentes na DLQ (limite: 100)"
+
+      - alert: DLQCritical
+        expr: |
+          dlq_events_pending{service="consumer",severity="high"} > 500
+        for: 5m
+        labels:
+          severity: critical
+          component: consumer-dlq
+        annotations:
+          summary: "DLQ CRÍTICA - muitos eventos pendentes"
+          description: "{{ $value }} eventos na DLQ - investigar urgentemente"
+
+      - alert: ValidationLatencyHigh
+        expr: |
+          histogram_quantile(0.95, rate(validation_duration_seconds_bucket{service="consumer"}[5m])) > 5
+        for: 5m
+        labels:
+          severity: warning
+          component: consumer-validation
+        annotations:
+          summary: "Validações com latência elevada"
+          description: "P95 de validação: {{ $value }}s (limite: 5s)"
+
+  # ========================================
+  # GRUPO 3: Alertas de Performance
+  # ========================================
+  - name: performance_alerts
+    interval: 1m
+    rules:
+      - alert: KafkaPublishLatencyHigh
+        expr: |
+          histogram_quantile(0.95, rate(kafka_publish_duration_seconds_bucket{service="producer"}[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+          component: kafka
+        annotations:
+          summary: "Latência alta na publicação Kafka"
+          description: "P95 de publicação: {{ $value }}s (limite: 1s)"
+
+      - alert: LowThroughput
+        expr: |
+          rate(events_processed_total{service="consumer"}[5m]) * 60 < 10
+        for: 10m
+        labels:
+          severity: warning
+          component: pipeline
+        annotations:
+          summary: "Throughput baixo no pipeline"
+          description: "Apenas {{ $value }} eventos/min processados (esperado: >10)"
+
+      - alert: HighPayloadSize
+        expr: |
+          histogram_quantile(0.95, rate(events_payload_size_bytes_bucket[5m])) > 10000
+        for: 10m
+        labels:
+          severity: info
+          component: payload
+        annotations:
+          summary: "Payloads muito grandes detectados"
+          description: "P95 do tamanho: {{ $value }} bytes (limite: 10KB)"
+
+  # ========================================
+  # GRUPO 4: Alertas de Saúde do Sistema
+  # ========================================
+  - name: system_health_alerts
+    interval: 1m
+    rules:
+      - alert: KafkaBrokerDown
+        expr: |
+          up{job="kafka-brokers"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: kafka
+        annotations:
+          summary: "Kafka Broker indisponível"
+          description: "Broker {{ $labels.instance }} não está respondendo"
+
+      - alert: NoEventsProcessed
+        expr: |
+          rate(events_consumed_total{service="consumer"}[10m]) == 0
+        for: 10m
+        labels:
+          severity: warning
+          component: pipeline
+        annotations:
+          summary: "Nenhum evento processado recentemente"
+          description: "Pipeline sem processar eventos há 10 minutos"
