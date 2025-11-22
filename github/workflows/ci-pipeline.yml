@@ -1,0 +1,291 @@
+name: CI Pipeline - Build & Tests
+
+on:
+  push:
+    branches: [ main, sprint3, develop ]
+  pull_request:
+    branches: [ main, sprint3, develop ]
+  workflow_dispatch:
+
+env:
+  JAVA_VERSION: '21'
+  MAVEN_OPTS: -Xmx3072m
+
+jobs:
+  # ============================================
+  # JOB 1: BUILD E TESTES UNITÁRIOS
+  # ============================================
+  build-and-unit-tests:
+    name: Build & Unit Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for SonarQube
+      
+      - name: ☕ Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'maven'
+      
+      - name: 🔍 Verify Maven version
+        run: mvn --version
+      
+      # Producer Service
+      - name: 🏗️ Build Producer Service
+        working-directory: ./producer-service
+        run: mvn clean compile -DskipTests
+      
+      - name: 🧪 Run Producer Unit Tests
+        working-directory: ./producer-service
+        run: mvn test
+      
+      - name: 📊 Generate Producer Coverage Report
+        working-directory: ./producer-service
+        run: mvn jacoco:report
+      
+      # Consumer Service
+      - name: 🏗️ Build Consumer Service
+        working-directory: ./consumer-service
+        run: mvn clean compile -DskipTests
+      
+      - name: 🧪 Run Consumer Unit Tests
+        working-directory: ./consumer-service
+        run: mvn test -DskipE2ETests=true
+      
+      - name: 📊 Generate Consumer Coverage Report
+        working-directory: ./consumer-service
+        run: mvn jacoco:report
+      
+      # Upload artifacts
+      - name: 📦 Upload Producer JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: producer-service-jar
+          path: producer-service/target/*.jar
+          retention-days: 7
+      
+      - name: 📦 Upload Consumer JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: consumer-service-jar
+          path: consumer-service/target/*.jar
+          retention-days: 7
+      
+      - name: 📊 Upload Test Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            producer-service/target/surefire-reports/
+            consumer-service/target/surefire-reports/
+            producer-service/target/site/jacoco/
+            consumer-service/target/site/jacoco/
+          retention-days: 30
+      
+      - name: 📈 Publish Test Results
+        if: always()
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: |
+            producer-service/target/surefire-reports/*.xml
+            consumer-service/target/surefire-reports/*.xml
+
+  # ============================================
+  # JOB 2: TESTES DE INTEGRAÇÃO E2E
+  # ============================================
+  integration-tests:
+    name: Integration Tests (E2E)
+    runs-on: ubuntu-latest
+    needs: build-and-unit-tests
+    
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: esocial_test
+          POSTGRES_USER: esocial_user
+          POSTGRES_PASSWORD: test123
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+      
+      - name: ☕ Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'maven'
+      
+      - name: 🐳 Start Docker Compose (Kafka + Dependencies)
+        run: |
+          docker-compose -f docker-compose.test.yml up -d zookeeper kafka-broker-1
+          sleep 30
+      
+      - name: 🔍 Verify Kafka is ready
+        run: |
+          docker exec $(docker ps -qf "name=kafka-broker-1") kafka-topics --bootstrap-server localhost:9092 --list || true
+      
+      - name: 🧪 Run E2E Tests (Consumer)
+        working-directory: ./consumer-service
+        run: mvn verify -Pe2e-tests -DskipUnitTests=true
+        env:
+          SPRING_PROFILES_ACTIVE: test
+      
+      - name: 📊 Upload E2E Test Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-reports
+          path: |
+            consumer-service/target/failsafe-reports/
+            consumer-service/target/surefire-reports/
+          retention-days: 30
+      
+      - name: 🛑 Stop Docker Compose
+        if: always()
+        run: docker-compose -f docker-compose.test.yml down -v
+
+  # ============================================
+  # JOB 3: CODE QUALITY & SECURITY
+  # ============================================
+  code-quality:
+    name: Code Quality & Security Scan
+    runs-on: ubuntu-latest
+    needs: build-and-unit-tests
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: ☕ Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'maven'
+      
+      # SonarQube Analysis (se configurado)
+      - name: 🔍 SonarQube Scan
+        if: github.event_name != 'pull_request'
+        working-directory: ./producer-service
+        run: |
+          mvn sonar:sonar \
+            -Dsonar.projectKey=etl-kafka-esocial-producer \
+            -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
+            -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+        continue-on-error: true
+      
+      # Dependency Check
+      - name: 🔒 OWASP Dependency Check
+        working-directory: ./producer-service
+        run: mvn org.owasp:dependency-check-maven:check
+        continue-on-error: true
+      
+      - name: 📊 Upload Security Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: |
+            producer-service/target/dependency-check-report.html
+            consumer-service/target/dependency-check-report.html
+          retention-days: 30
+
+  # ============================================
+  # JOB 4: BUILD DOCKER IMAGES
+  # ============================================
+  docker-build:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: [build-and-unit-tests, integration-tests]
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/sprint3'
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+      
+      - name: 🐳 Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: 🔐 Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      
+      - name: 📥 Download Producer JAR
+        uses: actions/download-artifact@v4
+        with:
+          name: producer-service-jar
+          path: producer-service/target/
+      
+      - name: 📥 Download Consumer JAR
+        uses: actions/download-artifact@v4
+        with:
+          name: consumer-service-jar
+          path: consumer-service/target/
+      
+      - name: 🏗️ Build Producer Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./producer-service
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/esocial-producer:latest
+            ${{ secrets.DOCKER_USERNAME }}/esocial-producer:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      - name: 🏗️ Build Consumer Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./consumer-service
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/esocial-consumer:latest
+            ${{ secrets.DOCKER_USERNAME }}/esocial-consumer:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ============================================
+  # JOB 5: NOTIFICAÇÃO DE SUCESSO/FALHA
+  # ============================================
+  notify:
+    name: Notify Build Status
+    runs-on: ubuntu-latest
+    needs: [build-and-unit-tests, integration-tests, code-quality, docker-build]
+    if: always()
+    
+    steps:
+      - name: ✅ Notify Success
+        if: needs.build-and-unit-tests.result == 'success' && needs.integration-tests.result == 'success'
+        run: |
+          echo "✅ Pipeline executado com sucesso!"
+          echo "Build: ${{ needs.build-and-unit-tests.result }}"
+          echo "E2E Tests: ${{ needs.integration-tests.result }}"
+          echo "Code Quality: ${{ needs.code-quality.result }}"
+          echo "Docker Build: ${{ needs.docker-build.result }}"
+      
+      - name: ❌ Notify Failure
+        if: needs.build-and-unit-tests.result == 'failure' || needs.integration-tests.result == 'failure'
+        run: |
+          echo "❌ Pipeline falhou!"
+          echo "Build: ${{ needs.build-and-unit-tests.result }}"
+          echo "E2E Tests: ${{ needs.integration-tests.result }}"
+          exit 1

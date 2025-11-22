@@ -6,29 +6,53 @@ on:
     paths:
       - 'config/prometheus/**'
       - 'config/alertmanager/**'
+      - 'config/grafana/**'
   pull_request:
     branches: [ sprint3 ]
+    paths:
+      - 'config/prometheus/**'
+      - 'config/alertmanager/**'
+  workflow_dispatch:
 
 jobs:
-  validate:
+  validate-alerting:
+    name: Validate Alerting Configuration
     runs-on: ubuntu-latest
     
     steps:
-      - uses: actions/checkout@v3
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
       
-      - name: Start infrastructure
+      - name: 🐳 Start Infrastructure
         run: |
-          docker-compose up -d
-          sleep 60
+          docker-compose up -d prometheus alertmanager
+          sleep 30
       
-      - name: Run validation
+      - name: 🔍 Validate Prometheus Config
+        run: |
+          docker exec esocial-prometheus promtool check config /etc/prometheus/prometheus.yml
+      
+      - name: 🔍 Validate Alert Rules
+        run: |
+          docker exec esocial-prometheus promtool check rules /etc/prometheus/alerts.yml
+      
+      - name: 🔍 Validate Alertmanager Config
+        run: |
+          docker exec esocial-alertmanager amtool check-config /etc/alertmanager/config.yml
+      
+      - name: 🧪 Run Validation Script
         run: |
           chmod +x scripts/validate-alerting-system.sh
           ./scripts/validate-alerting-system.sh --quick
       
-      - name: Upload validation log
+      - name: 📊 Upload Validation Logs
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: validation-log
+          name: validation-logs
           path: validation-*.log
+          retention-days: 7
+      
+      - name: 🛑 Cleanup
+        if: always()
+        run: docker-compose down -v
