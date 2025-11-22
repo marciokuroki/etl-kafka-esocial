@@ -1,24 +1,17 @@
-# Regras de alerta do Prometheus para monitoramento do pipeline eSocial
+# config/prometheus/alerts.yml
+# Regras de Alerta - Pipeline ETL eSocial com Apache Kafka
+# Versão: 2.0 - Consolidada
+# Última atualização: 2025-11-22
 
 groups:
   # ========================================
-  # GRUPO 1: Alertas Críticos do Producer
+  # GRUPO 1: ALERTAS CRÍTICOS DO PRODUCER
   # ========================================
   - name: producer_critical_alerts
     interval: 30s
     rules:
-      - alert: ProducerHighErrorRate
-        expr: |
-          rate(events_failed_total{service="producer"}[5m]) > 0.05
-        for: 5m
-        labels:
-          severity: critical
-          component: producer
-        annotations:
-          summary: "Producer com alta taxa de erro"
-          description: "Taxa de erro no Producer: {{ $value | humanizePercentage }} (limite: 5%)"
-          runbook_url: "https://github.com/marciokuroki/etl-kafka-esocial/blob/main/docs/runbooks/producer-high-error-rate.md"
-
+      
+      # Serviço Producer Indisponível
       - alert: ProducerServiceDown
         expr: |
           up{job="producer-service"} == 0
@@ -26,10 +19,60 @@ groups:
         labels:
           severity: critical
           component: producer
+          category: availability
+          team: platform
         annotations:
-          summary: "Producer Service indisponível"
-          description: "Producer Service não está respondendo há {{ $value }} minutos"
+          summary: "🚨 Producer Service indisponível"
+          description: |
+            O Producer Service não está respondendo há mais de 1 minuto.
+            Status: DOWN
+            Job: {{ $labels.job }}
+            Instance: {{ $labels.instance }}
+          action: |
+            1. Verificar status do container:
+               docker ps -a | grep producer-service
+            
+            2. Ver logs recentes:
+               docker logs esocial-producer --tail 100
+            
+            3. Verificar conectividade com dependências:
+               - PostgreSQL: docker exec esocial-postgres-db pg_isready
+               - Kafka: curl http://localhost:8090/api/clusters
+            
+            4. Reiniciar serviço:
+               docker-compose restart producer-service
+          runbook_url: "https://github.com/marciokuroki/etl-kafka-esocial/wiki/Runbook-ProducerServiceDown"
 
+      # Alta Taxa de Erro no Producer
+      - alert: ProducerHighErrorRate
+        expr: |
+          rate(events_failed_total{service="producer"}[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          component: producer
+          category: data-quality
+          team: data-engineering
+        annotations:
+          summary: "⚠️ Producer com alta taxa de erro"
+          description: |
+            Taxa de erro no Producer está em {{ $value | humanizePercentage }}.
+            Limite: 5%
+            Serviço: Producer Service
+          action: |
+            1. Consultar métricas detalhadas:
+               curl http://localhost:8081/actuator/prometheus | grep events_failed
+            
+            2. Verificar logs de erro:
+               docker logs esocial-producer --tail 50 | grep ERROR
+            
+            3. Verificar conectividade com banco de origem:
+               docker exec esocial-postgres-db psql -U esocial_user -d esocial -c "SELECT 1;"
+            
+            4. Analisar últimas mudanças no schema da origem
+          runbook_url: "https://github.com/marciokuroki/etl-kafka-esocial/wiki/Runbook-ProducerHighErrorRate"
+
+      # CDC com Latência Elevada
       - alert: CDCHighLatency
         expr: |
           histogram_quantile(0.95, rate(cdc_polling_duration_seconds_bucket{service="producer"}[5m])) > 10
@@ -37,31 +80,55 @@ groups:
         labels:
           severity: warning
           component: producer-cdc
+          category: performance
+          team: data-engineering
         annotations:
-          summary: "CDC com latência elevada"
-          description: "P95 do CDC: {{ $value }}s (limite: 10s)"
+          summary: "⏱️ CDC com latência elevada"
+          description: |
+            Latência P95 do CDC está em {{ $value }}s.
+            Limite: 10 segundos
+            Possível gargalo no polling ou no banco de dados.
+          action: |
+            1. Verificar carga do PostgreSQL:
+               docker exec esocial-postgres-db psql -U esocial_user -d esocial -c "SELECT * FROM pg_stat_activity WHERE state = 'active';"
+            
+            2. Analisar volume de mudanças:
+               docker exec esocial-postgres-db psql -U esocial_user -d esocial -c "SELECT COUNT(*) FROM source.employees WHERE updated_at > NOW() - INTERVAL '5 minutes';"
+            
+            3. Verificar configuração de polling interval
+            
+            4. Considerar otimizar queries do CDC
+          runbook_url: "https://github.com/marciokuroki/etl-kafka-esocial/wiki/Runbook-CDCHighLatency"
+
+      # Throughput Baixo no Producer
+      - alert: ProducerLowThroughput
+        expr: |
+          rate(events_published_total{service="producer"}[5m]) * 60 < 1
+        for: 10m
+        labels:
+          severity: warning
+          component: producer
+          category: performance
+          team: data-engineering
+        annotations:
+          summary: "📉 Throughput baixo no Producer"
+          description: |
+            Producer publicando apenas {{ $value }} eventos/min.
+            Esperado: > 1 evento/min
+          action: |
+            1. Verificar se há dados novos na origem
+            2. Analisar latência do CDC
+            3. Verificar conectividade com Kafka
+          runbook_url: "https://github.com/marciokuroki/etl-kafka-esocial/wiki/Runbook-LowThroughput"
 
   # ========================================
-  # GRUPO 2: Alertas Críticos do Consumer
+  # GRUPO 2: ALERTAS CRÍTICOS DO CONSUMER
   # ========================================
   - name: consumer_critical_alerts
     interval: 30s
     rules:
-      - alert: ConsumerHighErrorRate
-        expr: |
-          (
-            rate(validation_failure_total{service="consumer",severity="ERROR"}[5m]) 
-            / 
-            rate(events_consumed_total{service="consumer"}[5m])
-          ) > 0.05
-        for: 5m
-        labels:
-          severity: critical
-          component: consumer
-        annotations:
-          summary: "Consumer com alta taxa de erro de validação"
-          description: "Taxa de erro: {{ $value | humanizePercentage }} (limite: 5%)"
-
+      
+      # Serviço Consumer Indisponível
       - alert: ConsumerServiceDown
         expr: |
           up{job="consumer-service"} == 0
@@ -69,106 +136,108 @@ groups:
         labels:
           severity: critical
           component: consumer
+          category: availability
+          team: platform
         annotations:
-          summary: "Consumer Service indisponível"
-          description: "Consumer Service não está respondendo"
+          summary: "🚨 Consumer Service indisponível"
+          description: |
+            O Consumer Service não está respondendo.
+            Status: DOWN
+            Job: {{ $labels.job }}
+          action: |
+            1. Verificar container:
+               docker ps -a | grep consumer-service
+            
+            2. Ver logs:
+               docker logs esocial-consumer --tail 100
+            
+            3. Verificar dependências:
+               - Kafka: curl http://localhost:8090
+               - PostgreSQL: docker exec esocial-postgres-db pg_isready
+            
+            4. Reiniciar:
+               docker-compose restart consumer-service
+          runbook_url: "https://github.com/marciokuroki/etl-kafka-esocial/wiki/Runbook-ConsumerServiceDown"
 
+      # Alta Taxa de Erro de Validação
+      - alert: ConsumerHighValidationErrorRate
+        expr: |
+          (
+            rate(validation_failure_total{service="consumer",severity="ERROR"}[5m]) 
+            / 
+            (rate(validation_success_total{service="consumer"}[5m]) + rate(validation_failure_total{service="consumer",severity="ERROR"}[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          component: consumer
+          category: data-quality
+          team: data-engineering
+        annotations:
+          summary: "⚠️ Alta taxa de erro de validação"
+          description: |
+            Taxa de falha nas validações: {{ $value | humanizePercentage }}.
+            Limite: 5%
+            Serviço: Consumer Service
+          action: |
+            1. Consultar erros via API:
+               curl http://localhost:8082/api/v1/validation/errors | jq
+            
+            2. Ver distribuição de erros:
+               curl http://localhost:8082/api/v1/validation/dashboard | jq
+            
+            3. Verificar logs:
+               docker logs esocial-consumer --tail 100 | grep "Validation failed"
+            
+            4. Analisar padrão de erros para identificar causa raiz
+          runbook_url: "https://github.com/marciokuroki/etl-kafka-esocial/wiki/Runbook-HighValidationErrorRate"
+
+      # DLQ Acumulando (Warning)
       - alert: DLQAccumulating
         expr: |
-          dlq_events_pending{service="consumer",severity="high"} > 100
+          dlq_events_pending{service="consumer"} > 100
         for: 10m
         labels:
           severity: warning
           component: consumer-dlq
+          category: data-processing
+          team: data-engineering
         annotations:
-          summary: "DLQ com eventos acumulados"
-          description: "{{ $value }} eventos pendentes na DLQ (limite: 100)"
+          summary: "📬 DLQ com eventos acumulados"
+          description: |
+            {{ $value }} eventos acumulados na Dead Letter Queue.
+            Limite Warning: 100 eventos
+            Requer atenção para evitar acúmulo crítico.
+          action: |
+            1. Consultar eventos DLQ:
+               curl http://localhost:8082/api/v1/validation/dlq | jq
+            
+            2. Analisar padrões de erro:
+               curl http://localhost:8082/api/v1/validation/dlq | jq '.[] | .errorMessage' | sort | uniq -c
+            
+            3. Verificar se causa raiz já foi corrigida
+            
+            4. Considerar reprocessamento em lote
+          runbook_url: "https://github.com/marciokuroki/etl-kafka-esocial/wiki/Runbook-DLQAccumulating"
 
+      # DLQ Crítica
       - alert: DLQCritical
         expr: |
-          dlq_events_pending{service="consumer",severity="high"} > 500
+          dlq_events_pending{service="consumer"} > 500
         for: 5m
         labels:
           severity: critical
           component: consumer-dlq
+          category: data-processing
+          team: data-engineering
         annotations:
-          summary: "DLQ CRÍTICA - muitos eventos pendentes"
-          description: "{{ $value }} eventos na DLQ - investigar urgentemente"
-
-      - alert: ValidationLatencyHigh
-        expr: |
-          histogram_quantile(0.95, rate(validation_duration_seconds_bucket{service="consumer"}[5m])) > 5
-        for: 5m
-        labels:
-          severity: warning
-          component: consumer-validation
-        annotations:
-          summary: "Validações com latência elevada"
-          description: "P95 de validação: {{ $value }}s (limite: 5s)"
-
-  # ========================================
-  # GRUPO 3: Alertas de Performance
-  # ========================================
-  - name: performance_alerts
-    interval: 1m
-    rules:
-      - alert: KafkaPublishLatencyHigh
-        expr: |
-          histogram_quantile(0.95, rate(kafka_publish_duration_seconds_bucket{service="producer"}[5m])) > 1
-        for: 5m
-        labels:
-          severity: warning
-          component: kafka
-        annotations:
-          summary: "Latência alta na publicação Kafka"
-          description: "P95 de publicação: {{ $value }}s (limite: 1s)"
-
-      - alert: LowThroughput
-        expr: |
-          rate(events_processed_total{service="consumer"}[5m]) * 60 < 10
-        for: 10m
-        labels:
-          severity: warning
-          component: pipeline
-        annotations:
-          summary: "Throughput baixo no pipeline"
-          description: "Apenas {{ $value }} eventos/min processados (esperado: >10)"
-
-      - alert: HighPayloadSize
-        expr: |
-          histogram_quantile(0.95, rate(events_payload_size_bytes_bucket[5m])) > 10000
-        for: 10m
-        labels:
-          severity: info
-          component: payload
-        annotations:
-          summary: "Payloads muito grandes detectados"
-          description: "P95 do tamanho: {{ $value }} bytes (limite: 10KB)"
-
-  # ========================================
-  # GRUPO 4: Alertas de Saúde do Sistema
-  # ========================================
-  - name: system_health_alerts
-    interval: 1m
-    rules:
-      - alert: KafkaBrokerDown
-        expr: |
-          up{job="kafka-brokers"} == 0
-        for: 2m
-        labels:
-          severity: critical
-          component: kafka
-        annotations:
-          summary: "Kafka Broker indisponível"
-          description: "Broker {{ $labels.instance }} não está respondendo"
-
-      - alert: NoEventsProcessed
-        expr: |
-          rate(events_consumed_total{service="consumer"}[10m]) == 0
-        for: 10m
-        labels:
-          severity: warning
-          component: pipeline
-        annotations:
-          summary: "Nenhum evento processado recentemente"
-          description: "Pipeline sem processar eventos há 10 minutos"
+          summary: "🚨 DLQ CRÍTICA - Muitos eventos pendentes"
+          description: |
+            {{ $value }} eventos na DLQ - situação crítica!
+            Limite Critical: 500 eventos
+            Requer intervenção IMEDIATA.
+          action: |
+            1. URGENTE: Consultar eventos DLQ:
+               curl http://localhost:8082/api/v1/validation/dlq | jq
+            
+            2. Identific

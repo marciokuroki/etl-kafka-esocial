@@ -1,0 +1,109 @@
+# Configuração do Alertmanager para Sistema eSocial ETL
+
+global:
+  resolve_timeout: 5m
+  
+  # Configuração SMTP (descomente e configure se usar email)
+  # smtp_smarthost: 'smtp.gmail.com:587'
+  # smtp_from: 'alertas-esocial@empresa.com'
+  # smtp_auth_username: 'seu-email@gmail.com'
+  # smtp_auth_password: 'sua-senha-app'
+  # smtp_require_tls: true
+
+# Templates customizados
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# Roteamento de alertas
+route:
+  receiver: 'default'
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 10s        # Aguarda antes de enviar primeiro alerta
+  group_interval: 10s    # Intervalo entre alertas do mesmo grupo
+  repeat_interval: 12h   # Repete alerta se não resolvido
+  
+  routes:
+    # Alertas críticos - notificação imediata
+    - match:
+        severity: critical
+      receiver: 'critical-alerts'
+      group_wait: 5s
+      repeat_interval: 4h
+      continue: true
+    
+    # Alertas de warning - agrupados
+    - match:
+        severity: warning
+      receiver: 'warning-alerts'
+      group_wait: 30s
+      repeat_interval: 12h
+
+# Receptores de notificação
+receivers:
+  # Receptor padrão - webhook para testes
+  - name: 'default'
+    webhook_configs:
+      - url: 'http://webhook-receiver:5001/alerts'
+        send_resolved: true
+        max_alerts: 0
+
+  # Receptor para alertas críticos
+  - name: 'critical-alerts'
+    webhook_configs:
+      - url: 'http://webhook-receiver:5001/alerts/critical'
+        send_resolved: true
+    
+    # Email (descomente se configurado SMTP)
+    # email_configs:
+    #   - to: 'admin@s.com.br,suporte@s.com.br'
+    #     subject: '🚨 [CRÍTICO] {{ .GroupLabels.alertname }} - Pipeline eSocial'
+    #     html: |
+    #       <h2 style="color: #d32f2f;">🚨 Alerta Crítico - Pipeline eSocial</h2>
+    #       <p><strong>Alerta:</strong> {{ .GroupLabels.alertname }}</p>
+    #       <p><strong>Serviço:</strong> {{ .GroupLabels.service }}</p>
+    #       <p><strong>Severidade:</strong> {{ .GroupLabels.severity }}</p>
+    #       <p><strong>Descrição:</strong> {{ .CommonAnnotations.description }}</p>
+    #       <p><strong>Horário:</strong> {{ .StartsAt.Format "02/01/2006 15:04:05" }}</p>
+    #       {{ if .CommonAnnotations.action }}
+    #       <h3>Ações Recomendadas:</h3>
+    #       <pre>{{ .CommonAnnotations.action }}</pre>
+    #       {{ end }}
+    #       <p><a href="{{ .ExternalURL }}">Ver no Alertmanager</a></p>
+    
+    # Slack (descomente e configure o webhook URL)
+    # slack_configs:
+    #   - api_url: 'https://hooks.slack.com/services/YOUR/WEBHOOK/URL'
+    #     channel: '#alerts-esocial-critical'
+    #     title: '🚨 [CRÍTICO] {{ .GroupLabels.alertname }}'
+    #     text: |
+    #       *Serviço:* {{ .GroupLabels.service }}
+    #       *Descrição:* {{ .CommonAnnotations.description }}
+    #       *Horário:* {{ .StartsAt.Format "02/01/2006 15:04:05" }}
+    #     send_resolved: true
+
+  # Receptor para alertas de warning
+  - name: 'warning-alerts'
+    webhook_configs:
+      - url: 'http://webhook-receiver:5001/alerts/warning'
+        send_resolved: true
+    
+    # Email (descomente se configurado SMTP)
+    # email_configs:
+    #   - to: 'equipe@empresa.com'
+    #     subject: '⚠️ [WARNING] {{ .GroupLabels.alertname }} - Pipeline eSocial'
+
+# Inibição de alertas (evitar spam)
+inhibit_rules:
+  # Se um alerta crítico está ativo, não envia warnings relacionados
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'service']
+  
+  # Se serviço está down, não alerta sobre outras métricas dele
+  - source_match:
+      alertname: 'ServiceDown'
+    target_match_re:
+      alertname: '(HighErrorRate|HighLatency|HighConsumerLag)'
+    equal: ['service']

@@ -1,0 +1,252 @@
+{
+  "dashboard": {
+    "title": "Pipeline ETL eSocial - Overview",
+    "tags": ["esocial", "pipeline", "overview"],
+    "timezone": "browser",
+    "schemaVersion": 38,
+    "version": 1,
+    "refresh": "30s",
+    
+    "panels": [
+      {
+        "id": 1,
+        "title": "🎯 Status Geral dos Serviços",
+        "type": "stat",
+        "gridPos": {"x": 0, "y": 0, "w": 24, "h": 3},
+        "targets": [
+          {
+            "expr": "up{job=~\"producer-service|consumer-service\"}",
+            "legendFormat": "{{job}}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "colorMode": "background",
+          "graphMode": "none",
+          "textMode": "value_and_name"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              {"type": "value", "value": "0", "text": "DOWN", "color": "red"},
+              {"type": "value", "value": "1", "text": "UP", "color": "green"}
+            ],
+            "thresholds": {
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 1, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      
+      {
+        "id": 2,
+        "title": "📊 Eventos Processados (Últimas 6h)",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 3, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(events_published_total{service=\"producer\"}[5m]) * 60",
+            "legendFormat": "Publicados/min",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(events_consumed_total{service=\"consumer\"}[5m]) * 60",
+            "legendFormat": "Consumidos/min",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "Eventos/min"},
+          {"format": "short"}
+        ]
+      },
+      
+      {
+        "id": 3,
+        "title": "✅ Taxa de Sucesso vs ❌ Erros (Últimas 6h)",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 3, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(validation_success_total{service=\"consumer\"}[5m]) * 60",
+            "legendFormat": "Validações Sucesso/min",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(validation_failure_total{service=\"consumer\"}[5m]) * 60",
+            "legendFormat": "Validações Falha/min",
+            "refId": "B"
+          }
+        ],
+        "seriesOverrides": [
+          {"alias": "Validações Falha/min", "color": "#F2495C"}
+        ]
+      },
+      
+      {
+        "id": 4,
+        "title": "🚨 Alertas Ativos",
+        "type": "table",
+        "gridPos": {"x": 0, "y": 11, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "ALERTS{alertstate=\"firing\"}",
+            "format": "table",
+            "instant": true,
+            "refId": "A"
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {
+                "Time": true,
+                "Value": true,
+                "__name__": true
+              },
+              "renameByName": {
+                "alertname": "Alerta",
+                "severity": "Severidade",
+                "service": "Serviço",
+                "component": "Componente"
+              }
+            }
+          }
+        ],
+        "options": {
+          "showHeader": true,
+          "sortBy": [{"displayName": "Severidade", "desc": false}]
+        },
+        "fieldConfig": {
+          "overrides": [
+            {
+              "matcher": {"id": "byName", "options": "Severidade"},
+              "properties": [
+                {
+                  "id": "custom.displayMode",
+                  "value": "color-background"
+                },
+                {
+                  "id": "mappings",
+                  "value": [
+                    {"type": "value", "value": "critical", "text": "CRÍTICO", "color": "red"},
+                    {"type": "value", "value": "warning", "text": "WARNING", "color": "yellow"}
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      
+      {
+        "id": 5,
+        "title": "📬 Dead Letter Queue (DLQ)",
+        "type": "stat",
+        "gridPos": {"x": 12, "y": 11, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "dlq_events_pending{service=\"consumer\"}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "colorMode": "background",
+          "graphMode": "area",
+          "textMode": "value"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "thresholds": {
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 100, "color": "yellow"},
+                {"value": 500, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      
+      {
+        "id": 6,
+        "title": "⏱️ Latência CDC (P95)",
+        "type": "gauge",
+        "gridPos": {"x": 18, "y": 11, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(cdc_polling_duration_seconds_bucket{service=\"producer\"}[5m]))",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "showThresholdLabels": true,
+          "showThresholdMarkers": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "min": 0,
+            "max": 15,
+            "thresholds": {
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 5, "color": "yellow"},
+                {"value": 10, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      
+      {
+        "id": 7,
+        "title": "💾 Uso de Memória JVM (Heap)",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 15, "w": 12, "h": 4},
+        "targets": [
+          {
+            "expr": "(jvm_memory_used_bytes{area=\"heap\",job=\"producer-service\"} / jvm_memory_max_bytes{area=\"heap\",job=\"producer-service\"}) * 100",
+            "legendFormat": "Producer Heap %",
+            "refId": "A"
+          },
+          {
+            "expr": "(jvm_memory_used_bytes{area=\"heap\",job=\"consumer-service\"} / jvm_memory_max_bytes{area=\"heap\",job=\"consumer-service\"}) * 100",
+            "legendFormat": "Consumer Heap %",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {"format": "percent", "min": 0, "max": 100},
+          {"format": "short"}
+        ],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {"params": [85], "type": "gt"},
+              "operator": {"type": "and"},
+              "query": {"params": ["A", "5m", "now"]},
+              "reducer": {"params": [], "type": "avg"},
+              "type": "query"
+            }
+          ],
+          "frequency": "60s",
+          "handler": 1,
+          "name": "High Memory Usage",
+          "noDataState": "no_data",
+          "notifications": []
+        }
+      }
+    ],
+    
+    "time": {"from": "now-6h", "to": "now"},
+    "timepicker": {
+      "refresh_intervals": ["10s", "30s", "1m", "5m", "15m"]
+    }
+  }
+}

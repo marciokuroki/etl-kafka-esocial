@@ -403,10 +403,38 @@ services:
       - '--storage.tsdb.retention.time=15d'
       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
       - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
     volumes:
       - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
       - ./config/prometheus/alerts.yml:/etc/prometheus/alerts.yml
       - prometheus-data:/prometheus
+    restart: unless-stopped
+
+  # ====================================
+  # ALERTMANAGER (Gerenciamento de Alertas)
+  # ====================================
+  alertmanager:
+    image: prom/alertmanager:v0.26.0
+    container_name: esocial-alertmanager
+    hostname: alertmanager
+    networks:
+      - esocial-network
+    ports:
+      - "9093:9093"
+    command:
+      - '--config.file=/etc/alertmanager/config.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:9093'
+      - '--cluster.listen-address='
+    volumes:
+      - ./config/alertmanager/config.yml:/etc/alertmanager/config.yml
+      - alertmanager-data:/alertmanager
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9093/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     restart: unless-stopped
 
   # ====================================
@@ -424,7 +452,9 @@ services:
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-GrafanaPassword123!}
-      GF_INSTALL_PLUGINS: 'grafana-clock-panel,grafana-simple-json-datasource'
+      GF_INSTALL_PLUGINS: 'grafana-clock-panel,grafana-simple-json-datasource, grafana-piechart-panel'
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/pipeline-overview.json
+
     volumes:
       - grafana-data:/var/lib/grafana
       - ./config/grafana/provisioning:/etc/grafana/provisioning
@@ -501,3 +531,21 @@ services:
       "-strict.perms=false",
       "-E", "filebeat.config.modules.enabled=false"
     ]
+    
+  # ====================================
+  # WEBHOOK RECEIVER (Testes de Alertas)
+  # ====================================
+  webhook-receiver:
+    build:
+      context: ./scripts/webhook
+      dockerfile: Dockerfile
+    image: esocial-webhook:latest
+    container_name: esocial-webhook-receiver
+    hostname: webhook-receiver
+    networks:
+      - esocial-network
+    ports:
+      - "5001:5001"
+    environment:
+      LOG_LEVEL: DEBUG
+    restart: unless-stopped

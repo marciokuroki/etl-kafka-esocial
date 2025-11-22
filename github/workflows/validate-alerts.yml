@@ -1,0 +1,34 @@
+name: Validate Alerting System
+
+on:
+  push:
+    branches: [ sprint3 ]
+    paths:
+      - 'config/prometheus/**'
+      - 'config/alertmanager/**'
+  pull_request:
+    branches: [ sprint3 ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Start infrastructure
+        run: |
+          docker-compose up -d
+          sleep 60
+      
+      - name: Run validation
+        run: |
+          chmod +x scripts/validate-alerting-system.sh
+          ./scripts/validate-alerting-system.sh --quick
+      
+      - name: Upload validation log
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: validation-log
+          path: validation-*.log

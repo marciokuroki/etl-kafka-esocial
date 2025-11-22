@@ -1,0 +1,262 @@
+{
+  "dashboard": {
+    "title": "Sistema de Alertas - Monitor",
+    "tags": ["alerting", "monitoring"],
+    "timezone": "browser",
+    "schemaVersion": 38,
+    "version": 1,
+    "refresh": "10s",
+    
+    "panels": [
+      {
+        "id": 1,
+        "title": "🔔 Resumo de Alertas",
+        "type": "stat",
+        "gridPos": {"x": 0, "y": 0, "w": 24, "h": 4},
+        "targets": [
+          {
+            "expr": "count(ALERTS{alertstate=\"firing\",severity=\"critical\"})",
+            "legendFormat": "Críticos",
+            "refId": "A"
+          },
+          {
+            "expr": "count(ALERTS{alertstate=\"firing\",severity=\"warning\"})",
+            "legendFormat": "Warnings",
+            "refId": "B"
+          },
+          {
+            "expr": "count(ALERTS{alertstate=\"pending\"})",
+            "legendFormat": "Pendentes",
+            "refId": "C"
+          },
+          {
+            "expr": "count(ALERTS{alertstate=\"firing\"}) or vector(0)",
+            "legendFormat": "Total Ativos",
+            "refId": "D"
+          }
+        ],
+        "options": {
+          "colorMode": "background",
+          "graphMode": "none",
+          "textMode": "value_and_name"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 1, "color": "red"}
+              ]
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {"id": "byName", "options": "Críticos"},
+              "properties": [
+                {"id": "color", "value": {"mode": "fixed", "fixedColor": "red"}}
+              ]
+            },
+            {
+              "matcher": {"id": "byName", "options": "Warnings"},
+              "properties": [
+                {"id": "color", "value": {"mode": "fixed", "fixedColor": "yellow"}}
+              ]
+            }
+          ]
+        }
+      },
+      
+      {
+        "id": 2,
+        "title": "📊 Histórico de Alertas (24h)",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 4, "w": 24, "h": 8},
+        "targets": [
+          {
+            "expr": "count by (severity) (ALERTS{alertstate=\"firing\"})",
+            "legendFormat": "{{severity}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "Quantidade"},
+          {"format": "short"}
+        ],
+        "seriesOverrides": [
+          {
+            "alias": "critical",
+            "color": "#F2495C",
+            "fill": 2,
+            "linewidth": 2
+          },
+          {
+            "alias": "warning",
+            "color": "#FADE2A",
+            "fill": 2,
+            "linewidth": 2
+          }
+        ]
+      },
+      
+      {
+        "id": 3,
+        "title": "🚨 Alertas Críticos Ativos",
+        "type": "table",
+        "gridPos": {"x": 0, "y": 12, "w": 12, "h": 10},
+        "targets": [
+          {
+            "expr": "ALERTS{alertstate=\"firing\",severity=\"critical\"}",
+            "format": "table",
+            "instant": true,
+            "refId": "A"
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {
+                "Time": true,
+                "Value": true,
+                "__name__": true,
+                "alertstate": true,
+                "severity": true
+              },
+              "renameByName": {
+                "alertname": "Alerta",
+                "service": "Serviço",
+                "component": "Componente",
+                "category": "Categoria"
+              }
+            }
+          }
+        ],
+        "options": {
+          "showHeader": true,
+          "sortBy": [{"displayName": "Alerta", "desc": false}]
+        }
+      },
+      
+      {
+        "id": 4,
+        "title": "⚠️ Alertas Warning Ativos",
+        "type": "table",
+        "gridPos": {"x": 12, "y": 12, "w": 12, "h": 10},
+        "targets": [
+          {
+            "expr": "ALERTS{alertstate=\"firing\",severity=\"warning\"}",
+            "format": "table",
+            "instant": true,
+            "refId": "A"
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {
+                "Time": true,
+                "Value": true,
+                "__name__": true,
+                "alertstate": true,
+                "severity": true
+              },
+              "renameByName": {
+                "alertname": "Alerta",
+                "service": "Serviço",
+                "component": "Componente",
+                "category": "Categoria"
+              }
+            }
+          }
+        ]
+      },
+      
+      {
+        "id": 5,
+        "title": "📈 Taxa de Erro de Validação (%)",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 22, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "(rate(validation_failure_total{service=\"consumer\"}[5m]) / (rate(validation_success_total{service=\"consumer\"}[5m]) + rate(validation_failure_total{service=\"consumer\"}[5m]))) * 100",
+            "legendFormat": "Taxa de Erro %",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "percent", "min": 0, "max": 100},
+          {"format": "short"}
+        ],
+        "thresholds": [
+          {
+            "value": 5,
+            "colorMode": "critical",
+            "op": "gt",
+            "fill": true,
+            "line": true,
+            "yaxis": "left"
+          }
+        ]
+      },
+      
+      {
+        "id": 6,
+        "title": "🕐 Tempo Médio de Resolução (MTTR)",
+        "type": "stat",
+        "gridPos": {"x": 12, "y": 22, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "avg(ALERTS_FOR_STATE{alertstate=\"firing\"}) / 60",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "colorMode": "value",
+          "graphMode": "area",
+          "textMode": "value"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "m",
+            "decimals": 1,
+            "thresholds": {
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 15, "color": "yellow"},
+                {"value": 30, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      
+      {
+        "id": 7,
+        "title": "📊 Alertas por Componente",
+        "type": "piechart",
+        "gridPos": {"x": 18, "y": 22, "w": 6, "h": 8},
+        "targets": [
+          {
+            "expr": "count by (component) (ALERTS{alertstate=\"firing\"})",
+            "legendFormat": "{{component}}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "legend": {
+            "displayMode": "table",
+            "placement": "right",
+            "values": ["value", "percent"]
+          },
+          "pieType": "donut"
+        }
+      }
+    ],
+    
+    "time": {"from": "now-24h", "to": "now"},
+    "timepicker": {
+      "refresh_intervals": ["10s", "30s", "1m", "5m"]
+    }
+  }
+}

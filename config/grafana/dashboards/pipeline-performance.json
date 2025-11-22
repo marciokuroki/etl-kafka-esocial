@@ -1,0 +1,263 @@
+{
+  "dashboard": {
+    "title": "Pipeline ETL - Performance",
+    "tags": ["performance", "metrics"],
+    "timezone": "browser",
+    "schemaVersion": 38,
+    "version": 1,
+    "refresh": "30s",
+    
+    "panels": [
+      {
+        "id": 1,
+        "title": "📊 Throughput (eventos/min)",
+        "type": "stat",
+        "gridPos": {"x": 0, "y": 0, "w": 8, "h": 4},
+        "targets": [
+          {
+            "expr": "rate(events_published_total{service=\"producer\"}[1m]) * 60",
+            "legendFormat": "Producer",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(events_consumed_total{service=\"consumer\"}[1m]) * 60",
+            "legendFormat": "Consumer",
+            "refId": "B"
+          }
+        ],
+        "options": {
+          "colorMode": "value",
+          "graphMode": "area",
+          "textMode": "value_and_name"
+        }
+      },
+      
+      {
+        "id": 2,
+        "title": "⏱️ Latência P95 (segundos)",
+        "type": "stat",
+        "gridPos": {"x": 8, "y": 0, "w": 8, "h": 4},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(cdc_polling_duration_seconds_bucket{service=\"producer\"}[5m]))",
+            "legendFormat": "CDC P95",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(validation_duration_seconds_bucket{service=\"consumer\"}[5m]))",
+            "legendFormat": "Validação P95",
+            "refId": "B"
+          }
+        ],
+        "options": {
+          "colorMode": "value",
+          "graphMode": "area",
+          "textMode": "value_and_name"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "decimals": 2,
+            "thresholds": {
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 5, "color": "yellow"},
+                {"value": 10, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      
+      {
+        "id": 3,
+        "title": "💾 Memória JVM (%)",
+        "type": "stat",
+        "gridPos": {"x": 16, "y": 0, "w": 8, "h": 4},
+        "targets": [
+          {
+            "expr": "(jvm_memory_used_bytes{area=\"heap\",job=\"producer-service\"} / jvm_memory_max_bytes{area=\"heap\",job=\"producer-service\"}) * 100",
+            "legendFormat": "Producer",
+            "refId": "A"
+          },
+          {
+            "expr": "(jvm_memory_used_bytes{area=\"heap\",job=\"consumer-service\"} / jvm_memory_max_bytes{area=\"heap\",job=\"consumer-service\"}) * 100",
+            "legendFormat": "Consumer",
+            "refId": "B"
+          }
+        ],
+        "options": {
+          "colorMode": "value",
+          "graphMode": "area",
+          "textMode": "value_and_name"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "decimals": 1,
+            "thresholds": {
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 70, "color": "yellow"},
+                {"value": 85, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      
+      {
+        "id": 4,
+        "title": "📈 Throughput Detalhado (24h)",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 4, "w": 24, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(events_published_total{service=\"producer\"}[5m]) * 60",
+            "legendFormat": "Publicados/min",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(events_consumed_total{service=\"consumer\"}[5m]) * 60",
+            "legendFormat": "Consumidos/min",
+            "refId": "B"
+          },
+          {
+            "expr": "rate(validation_success_total{service=\"consumer\"}[5m]) * 60",
+            "legendFormat": "Validações Sucesso/min",
+            "refId": "C"
+          },
+          {
+            "expr": "rate(validation_failure_total{service=\"consumer\"}[5m]) * 60",
+            "legendFormat": "Validações Falha/min",
+            "refId": "D"
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "Eventos/min"},
+          {"format": "short"}
+        ],
+        "seriesOverrides": [
+          {"alias": "Validações Falha/min", "color": "#F2495C", "yaxis": 1}
+        ]
+      },
+      
+      {
+        "id": 5,
+        "title": "⏱️ Latência CDC ao Longo do Tempo",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 12, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, rate(cdc_polling_duration_seconds_bucket{service=\"producer\"}[5m]))",
+            "legendFormat": "P50",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(cdc_polling_duration_seconds_bucket{service=\"producer\"}[5m]))",
+            "legendFormat": "P95",
+            "refId": "B"
+          },
+          {
+            "expr": "histogram_quantile(0.99, rate(cdc_polling_duration_seconds_bucket{service=\"producer\"}[5m]))",
+            "legendFormat": "P99",
+            "refId": "C"
+          }
+        ],
+        "yaxes": [
+          {"format": "s", "label": "Latência"},
+          {"format": "short"}
+        ]
+      },
+      
+      {
+        "id": 6,
+        "title": "⏱️ Latência de Validação ao Longo do Tempo",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 12, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, rate(validation_duration_seconds_bucket{service=\"consumer\"}[5m]))",
+            "legendFormat": "P50",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(validation_duration_seconds_bucket{service=\"consumer\"}[5m]))",
+            "legendFormat": "P95",
+            "refId": "B"
+          },
+          {
+            "expr": "histogram_quantile(0.99, rate(validation_duration_seconds_bucket{service=\"consumer\"}[5m]))",
+            "legendFormat": "P99",
+            "refId": "C"
+          }
+        ],
+        "yaxes": [
+          {"format": "s", "label": "Latência"},
+          {"format": "short"}
+        ]
+      },
+      
+      {
+        "id": 7,
+        "title": "💾 Uso de Memória Heap (bytes)",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 20, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "jvm_memory_used_bytes{area=\"heap\",job=\"producer-service\"}",
+            "legendFormat": "Producer Used",
+            "refId": "A"
+          },
+          {
+            "expr": "jvm_memory_max_bytes{area=\"heap\",job=\"producer-service\"}",
+            "legendFormat": "Producer Max",
+            "refId": "B"
+          },
+          {
+            "expr": "jvm_memory_used_bytes{area=\"heap\",job=\"consumer-service\"}",
+            "legendFormat": "Consumer Used",
+            "refId": "C"
+          },
+          {
+            "expr": "jvm_memory_max_bytes{area=\"heap\",job=\"consumer-service\"}",
+            "legendFormat": "Consumer Max",
+            "refId": "D"
+          }
+        ],
+        "yaxes": [
+          {"format": "bytes", "label": "Memória"},
+          {"format": "short"}
+        ],
+        "seriesOverrides": [
+          {"alias": "/Max/", "dashes": true, "fill": 0}
+        ]
+      },
+      
+      {
+        "id": 8,
+        "title": "🗑️ Garbage Collection (GC)",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 20, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(jvm_gc_pause_seconds_sum{job=\"producer-service\"}[5m])",
+            "legendFormat": "Producer GC Time/s",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(jvm_gc_pause_seconds_sum{job=\"consumer-service\"}[5m])",
+            "legendFormat": "Consumer GC Time/s",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {"format": "s", "label": "GC Time"},
+          {"format": "short"}
+        ]
+      }
+    ],
+    
+    "time": {"from": "now-24h", "to": "now"}
+  }
+}
