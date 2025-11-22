@@ -1,0 +1,15 @@
+filebeat.inputs:
+- type: log
+  enabled: true
+  paths:
+    - /var/log/producer/*.log
+    - /var/log/consumer/*.log
+  json.keys_under_root: true
+  json.add_error_key: true
+  json.message_key: message
+
+output.logstash:
+  hosts: ["logstash:5044"]
+
+setup.kibana:
+  host: "http://kibana:5601"

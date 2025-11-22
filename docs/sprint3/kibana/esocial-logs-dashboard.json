@@ -1,0 +1,25 @@
+{
+  "title": "eSocial Logs Dashboard",
+  "visualizations": [
+    {
+      "name": "Logs por Nível",
+      "type": "bar",
+      "field": "level",
+      "aggregation": "count"
+    },
+    {
+      "name": "Logs por Serviço",
+      "type": "pie",
+      "field": "logger.keyword",
+      "aggregation": "count"
+    }
+  ],
+  "panels": [
+    {
+      "title": "Últimos Logs",
+      "type": "table",
+      "fields": ["@timestamp", "level", "logger", "message", "correlationId"],
+      "sort": {"@timestamp": "desc"}
+    }
+  ]
+}

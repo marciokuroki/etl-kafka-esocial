@@ -11,12 +11,23 @@
     </encoder>
   </appender>
 
+  <appender name="FILE_JSON" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>logs/esocial-es.json.log</file>
+    <encoder class="net.logstash.logback.encoder.LogstashEncoder" />
+    <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+      <fileNamePattern>logs/esocial-es.%d{yyyy-MM-dd}.log</fileNamePattern>
+      <maxHistory>7</maxHistory>
+    </rollingPolicy>
+  </appender>
+
   <root level="INFO">
     <appender-ref ref="STDOUT" />
+    <appender-ref ref="FILE_JSON" />
   </root>
 
   <logger name="com.esocial" level="DEBUG" additivity="false">
     <appender-ref ref="STDOUT"/>
+    <appender-ref ref="FILE_JSON"/>
   </logger>
 
 </configuration>

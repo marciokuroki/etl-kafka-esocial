@@ -454,6 +454,17 @@ services:
       timeout: 10s
       retries: 5
     restart: unless-stopped
+  
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.11.0
+    depends_on:
+      - elasticsearch
+    ports:
+      - "5044:5044"
+    volumes:
+      - ./logstash/pipeline/:/usr/share/logstash/pipeline/
+    environment:
+      - xpack.monitoring.enabled=false
 
   # ====================================
   # KIBANA (Visualização de Logs)
@@ -475,3 +486,18 @@ services:
       timeout: 10s
       retries: 5
     restart: unless-stopped
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.11.0
+    user: root
+    volumes:
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - ./logs/producer:/var/log/producer:ro
+      - ./logs/consumer:/var/log/consumer:ro
+    depends_on:
+      - logstash
+    command: [
+      "-e",
+      "-strict.perms=false",
+      "-E", "filebeat.config.modules.enabled=false"
+    ]

@@ -1,0 +1,29 @@
+{
+  "attributes": {
+    "title": "Esocial - Saved Searches",
+    "description": "Coleção de consultas para logs estruturados esocial",
+    "searches": [
+      {
+        "title": "Todos Logs",
+        "query": {
+          "language": "kuery",
+          "query": ""
+        }
+      },
+      {
+        "title": "Logs de Erro",
+        "query": {
+          "language": "kuery",
+          "query": "level : error"
+        }
+      },
+      {
+        "title": "Logs por Correlation ID Exemplo",
+        "query": {
+          "language": "kuery",
+          "query": "correlationId : \"550e8400-e29b-41d4-a716-446655440000\""
+        }
+      }
+    ]
+  }
+}
