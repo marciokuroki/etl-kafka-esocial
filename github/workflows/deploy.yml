@@ -10,6 +10,31 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:15.2
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_DB: esocial
+          POSTGRES_USER: esocial_user
+          POSTGRES_PASSWORD: secret
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      kafka:
+        image: confluentinc/cp-kafka:7.4.3
+        ports:
+          - 9092:9092
+        options: >-
+          --health-cmd "broker-api-versions --bootstrap-server localhost:9092"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
     - name: Checkout código
       uses: actions/checkout@v3
@@ -20,28 +45,46 @@ jobs:
         distribution: temurin
         java-version: 17
 
+    - name: Cache Maven packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.m2/repository
+        key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          ${{ runner.os }}-maven-
+
     - name: Build Producer Service
       working-directory: ./producer-service
-      run: mvn clean package -DskipTests
-
-    - name: Build Consumer Service
-      working-directory: ./consumer-service
-      run: mvn clean package -DskipTests
+      run: mvn clean package
 
     - name: Executar testes unitários Producer
       working-directory: ./producer-service
       run: mvn test
-    
+
+    - name: Executar testes de integração Producer
+      working-directory: ./producer-service
+      env:
+        SPRING_KAFKA_BOOTSTRAP_SERVERS: localhost:9092
+        SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/esocial
+        SPRING_DATASOURCE_USERNAME: esocial_user
+        SPRING_DATASOURCE_PASSWORD: secret
+      run: mvn verify -Pintegration-tests
+
+    - name: Build Consumer Service
+      working-directory: ./consumer-service
+      run: mvn clean package
+
     - name: Executar testes unitários Consumer
       working-directory: ./consumer-service
       run: mvn test
-    
-    - name: Executar testes de integração Producer (se houver perfil)
-      working-directory: ./producer-service
-      run: mvn verify -Pintegration-tests
 
-    - name: Executar testes de integração Consumer (se houver perfil)
+    - name: Executar testes de integração Consumer
       working-directory: ./consumer-service
+      env:
+        SPRING_KAFKA_BOOTSTRAP_SERVERS: localhost:9092
+        SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/esocial
+        SPRING_DATASOURCE_USERNAME: esocial_user
+        SPRING_DATASOURCE_PASSWORD: secret
       run: mvn verify -Pintegration-tests
 
     - name: Build images Docker

@@ -1,32 +1,32 @@
 package com.esocial.consumer.integration;
 
 import com.esocial.consumer.model.dto.EmployeeEventDTO;
-import com.esocial.consumer.validation.ValidationResult;
 import com.esocial.consumer.service.KafkaConsumerService;
-import com.esocial.consumer.service.PersistenceService;
+import com.esocial.consumer.validation.ValidationResult;
 import com.esocial.consumer.service.ValidationService;
+import com.esocial.consumer.service.PersistenceService;
 
-import org.apache.kafka.common.header.Headers;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.kafka.support.Acknowledgment;
-import org.springframework.kafka.test.context.EmbeddedKafka;
+
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
+import org.apache.kafka.common.header.Headers;
+import org.springframework.kafka.support.Acknowledgment;
+
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 @Testcontainers
-@EmbeddedKafka(partitions = 1, topics = { "employee-create", "employee-update", "employee-delete" })
 @SpringBootTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-public class ConsumerServiceIntegrationTest {
+public class CorrelationIdIntegrationTest {
 
     @Container
     public static KafkaContainer kafka = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.4.3"));
@@ -65,7 +65,7 @@ public class ConsumerServiceIntegrationTest {
     }
 
     @Test
-    public void testFullEmployeeFlow() throws InterruptedException {
+    public void testCorrelationIdPropagation() {
         UUID correlationId = UUID.randomUUID();
 
         EmployeeEventDTO event = EmployeeEventDTO.builder()
@@ -79,7 +79,6 @@ public class ConsumerServiceIntegrationTest {
                 .build();
 
         Headers headers = TestHelper.createHeadersWithCorrelationId(correlationId.toString());
-
         Acknowledgment acknowledgment = TestHelper.createAcknowledgmentStub();
 
         kafkaConsumerService.consumeEmployeeEvent(event, "employee-create", 1L, 0, headers, acknowledgment);
@@ -89,8 +88,6 @@ public class ConsumerServiceIntegrationTest {
 
         var employeeOpt = persistenceService.findEmployeeBySourceId(event.getSourceId());
         assertThat(employeeOpt).isPresent();
-
-        // Opcional: validar que o correlationId está correto no DTO após consumo
         assertThat(event.getCorrelationId()).isEqualTo(correlationId);
     }
 }

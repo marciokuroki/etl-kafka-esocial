@@ -232,30 +232,30 @@ Este projeto faz parte do Trabalho de Conclusão de Curso (TCC) da Pós-Graduaç
 - **IntelliJ IDEA** ou **VS Code**
 
 ### Verificar Instalação
-
-```
-
-
 # Docker
-
-docker --version
-
-# Saída esperada: Docker version 24.0.x
-
-# Docker Compose
-
-docker-compose --version
-
-# Saída esperada: Docker Compose version 2.20.x
-
-# Git
-
-git --version
-
-# Saída esperada: git version 2.40.x
-
 ```
-
+docker --version
+```
+# Saída esperada: 
+```
+Docker version 24.0.x
+```
+# Docker Compose
+```
+docker-compose --version
+```
+# Saída esperada: 
+```
+Docker Compose version 2.20.x
+```
+# Git
+```
+git --version
+```
+# Saída esperada: 
+```
+git version 2.40.x
+```
 ---
 
 ## 🚀 Instalação
@@ -263,79 +263,61 @@ git --version
 ### 1. Clonar o Repositório
 
 ```
-
 git clone https://github.com/seu-usuario/etl-kafka-esocial.git
 cd etl-kafka-esocial
 
 ```
 
 ### 2. Configurar Variáveis de Ambiente (Opcional)
-
-```
-
-
 # Copiar arquivo de exemplo
 
+```
 cp .env.example .env
-
+```
 # Editar conforme necessário
-
+```
 vim .env
-
 ```
-
 ### 3. Compilar os Serviços (Opcional)
-
-```
-
-
 # Se quiser fazer alterações no código
-
+```
 cd producer-service \&\& mvn clean package -DskipTests
 cd ../consumer-service \&\& mvn clean package -DskipTests
 cd ..
 
 ```
-
 ### 4. Iniciar Todos os Containers
-
-```
-
-
 # Iniciar infraestrutura completa
-
+```
 docker-compose up -d
-
+```
 # Aguardar containers ficarem healthy (~2 minutos)
-
+```
 docker-compose ps
-
+```
 # Ver logs em tempo real
-
+```
 docker-compose logs -f producer-service consumer-service
-
 ```
-
 ### 5. Validar Instalação
-
-```
-
-
 # Health checks
-
+```
 curl http://localhost:8081/actuator/health | jq
 curl http://localhost:8082/actuator/health | jq
-
-# Acessar interfaces
-
-# Kafka UI: http://localhost:8090
-
-# Prometheus: http://localhost:9090
-
-# Grafana: http://localhost:3000 (admin/admin)
-
 ```
-
+# Acessar interfaces
+# Kafka UI: 
+```
+http://localhost:8090
+```
+# Prometheus: 
+```
+http://localhost:9090
+```
+# Grafana: 
+```
+http://localhost:3000 (admin/admin)
+```
 **Status esperado:** Todos os serviços retornam `{"status":"UP"}`
 
 ---
@@ -343,16 +325,12 @@ curl http://localhost:8082/actuator/health | jq
 ## 💻 Uso
 
 ### Cenário 1: Inserir Novo Colaborador
-
-```
-
-
 # 1. Conectar no PostgreSQL
-
+```
 docker exec -it esocial-postgres-db psql -U esocial_user -d esocial
-
+```
 # 2. Inserir colaborador
-
+```
 INSERT INTO source.employees VALUES (
 'EMP100',
 '12345678901',
@@ -368,16 +346,15 @@ NULL,
 NOW(),
 NOW()
 );
-
+```
 # 3. Aguardar 5 segundos (polling)
 
 # 4. Verificar processamento
-
+```
 SELECT * FROM public.employees WHERE source_id = 'EMP100';
 SELECT * FROM audit.employees_history WHERE source_id = 'EMP100';
 
 ```
-
 **Resultado esperado:**
 - ✅ Producer captura mudança
 - ✅ Evento publicado no Kafka (topic: employee-create)
@@ -388,7 +365,6 @@ SELECT * FROM audit.employees_history WHERE source_id = 'EMP100';
 ### Cenário 2: Atualizar Salário
 
 ```
-
 -- Atualizar salário
 UPDATE source.employees
 SET salary = 6500.00, updated_at = NOW()
@@ -411,42 +387,33 @@ ORDER BY changed_at;
 - ✅ Histórico com 2 registros (INSERT + UPDATE)
 
 ### Cenário 3: Consultar Erros de Validação
-
-```
-
-
 # API REST
 
+```
 curl http://localhost:8082/api/v1/validation/errors | jq
-
+```
 # Dashboard
-
+```
 curl http://localhost:8082/api/v1/validation/dashboard | jq
-
+```
 # Dead Letter Queue
-
+```
 curl http://localhost:8082/api/v1/validation/dlq | jq
-
 ```
 
 ### Cenário 4: Monitorar Métricas
-
-```
-
-
 # Métricas do Producer
-
+```
 curl http://localhost:8081/actuator/prometheus | grep events_published
-
+```
 # Métricas do Consumer
-
+```
 curl http://localhost:8082/actuator/prometheus | grep events_consumed
-
+```
 # Ou acessar dashboards
-
+```
 open http://localhost:9090  \# Prometheus
 open http://localhost:3000  \# Grafana
-
 ```
 
 ---
@@ -456,33 +423,29 @@ open http://localhost:3000  \# Grafana
 ### Executar Testes do Producer
 
 ```
-
 cd producer-service
-
+```
 # Todos os testes
-
+```
 mvn test
-
+```
 # Com relatório de cobertura
-
+```
 mvn clean test
-
+```
 # Ver relatório HTML
-
+```
 open target/site/jacoco/index.html
-
+```
 # Teste específico
-
+```
 mvn test -Dtest=KafkaProducerServiceTest
-
 ```
 
 **Resultado esperado:**
 ```
-
 Tests run: 18, Failures: 0, Errors: 0, Skipped: 0
 Coverage: 82%
-
 ```
 
 ### Gerar Carga de Teste Automaticamente
@@ -510,25 +473,17 @@ curl http://localhost:8081/actuator/prometheus | grep events_published
 curl http://localhost:8082/actuator/prometheus | grep events_consumed
 ```
 
-
 ### Executar Testes do Consumer (Sprint 2)
 
 ```
-
 cd consumer-service
 mvn test
-
 ```
 
 ### Testes de Integração (Sprint 2)
-
-```
-
-
 # Testes end-to-end
-
+```
 mvn verify -Pintegration-tests
-
 ```
 
 ---
@@ -545,6 +500,8 @@ mvn verify -Pintegration-tests
 | **Consumer Service** | README técnico | [consumer-service/README.md](consumer-service/README.md) |
 | **Testes - Producer** | Guia de testes | [producer-service/TESTING.md](producer-service/TESTING.md) |
 | **Sprint 1** | Retrospectiva e evidências | [docs/sprint1/](docs/sprint1/) |
+| **Sprint 2** | Retrospectiva e evidências | [docs/sprint2/](docs/sprint2/) |
+| **Sprint 3** | Retrospectiva e evidências | [docs/sprint3/](docs/sprint3/) |
 
 ### Guias de Setup
 
@@ -583,20 +540,20 @@ mvn verify -Pintegration-tests
 - [x] Documentação (C4 + ADRs)
 
 ### 🔄 Sprint 2 - Qualidade e Monitoramento (Em Planejamento)
-- [ ] Testes unitários Consumer (35+ testes)
-- [ ] Testes de integração (Testcontainers)
-- [ ] Testes de carga (JMeter)
-- [ ] Dashboards Grafana
-- [ ] Alertas Prometheus
-- [ ] Documentação Swagger
+- [x] Testes unitários Consumer (35+ testes)
+- [x] Testes de integração (Testcontainers)
+- [x] Testes de carga (JMeter)
+- [x] Dashboards Grafana
+- [x] Alertas Prometheus
+- [x] Documentação Swagger
 
 ### 📋 Sprint 3 - Produção (Backlog)
-- [ ] CI/CD (GitHub Actions)
-- [ ] Migração CDC (Debezium)
-- [ ] Segurança (TLS + SASL)
-- [ ] Backup e DR
-- [ ] Documentação deployment
-- [ ] Testes E2E
+- [x] CI/CD (GitHub Actions)
+- [x] Migração CDC (Debezium)
+- [x] Segurança (TLS + SASL)
+- [x] Backup e DR
+- [x] Documentação deployment
+- [x] Testes E2E
 
 ---
 
