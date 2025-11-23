@@ -118,20 +118,19 @@ As métricas básicas da Sprint 1 foram **mantidas para retrocompatibilidade** e
 ### Exemplo de Dashboard Grafana
 
 **Painel: "CDC Performance"**
+#### Taxa de detecção (eventos/min)
 ```
-# Taxa de detecção (eventos/min)
-
 rate(cdc_records_detected[1m]) * 60
-
-# Taxa de processamento (eventos/min)
-
+```
+#### Taxa de processamento (eventos/min)
+```
 rate(cdc_records_processed[1m]) * 60
-
-# Latência P95 do polling
-
+```
+#### Latência P95 do polling
+```
 histogram_quantile(0.95, rate(cdc_polling_duration_bucket[5m]))
-
-# Taxa de sucesso
-
+```
+#### Taxa de sucesso
+```
 (rate(cdc_records_processed[5m]) / rate(cdc_records_detected[5m])) * 100
 ```
