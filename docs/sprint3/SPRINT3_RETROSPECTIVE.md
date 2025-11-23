@@ -24,7 +24,7 @@
 
 ## Resumo Executivo
 
-A **Sprint 3** focou em **monitoramento, observabilidade, segurança e preparação para produção**. Todos os 15 cards planejados foram concluídos com sucesso, entregando um sistema **production-ready** do ponto de vista de arquitetura, embora seja um projeto acadêmico (TCC).
+A **Sprint 3** focou em **monitoramento, observabilidade, segurança e preparação para produção**. Todos os 15 cards planejados foram concluídos com sucesso, entregando um sistema **production-ready** do ponto de vista de arquitetura, embora seja um projeto acadêmico (Projeto Aplicado).
 
 ### Status da Sprint
 
