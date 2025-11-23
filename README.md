@@ -532,28 +532,80 @@ mvn verify -Pintegration-tests
 ## 🗺️ Roadmap
 
 ### ✅ Sprint 1 - Infraestrutura Base (Concluída)
-- [x] Setup Docker Compose
-- [x] Cluster Kafka (3 brokers)
-- [x] Producer Service (CDC + Kafka)
-- [x] Consumer Service (Validation + Persistence)
-- [x] Observabilidade (Prometheus + Grafana)
-- [x] Documentação (C4 + ADRs)
 
-### 🔄 Sprint 2 - Qualidade e Monitoramento (Em Planejamento)
-- [x] Testes unitários Consumer (35+ testes)
-- [x] Testes de integração (Testcontainers)
-- [x] Testes de carga (JMeter)
-- [x] Dashboards Grafana
-- [x] Alertas Prometheus
-- [x] Documentação Swagger
+- Setup Docker Compose
+- Cluster Kafka (3 brokers)
+- Producer Service (CDC + Kafka)
+- Consumer Service (Validation + Persistence)
+- Observabilidade (Prometheus + Grafana)
+- Documentação (C4 + ADRs)
 
-### 📋 Sprint 3 - Produção (Backlog)
-- [x] CI/CD (GitHub Actions)
-- [x] Migração CDC (Debezium)
-- [x] Segurança (TLS + SASL)
-- [x] Backup e DR
-- [x] Documentação deployment
-- [x] Testes E2E
+### ✅ Sprint 2 - Qualidade e Monitoramento (Concluída)
+
+- Testes unitários Consumer (35 testes)
+- Dashboards Grafana customizados
+- Alertas Prometheus (8 regras iniciais)
+- Documentação técnica aprimorada
+
+### ✅ Sprint 3 - Testes E2E e Automação (Concluída)
+
+- Testes E2E com Testcontainers (23 testes)
+- Sistema de alertas completo (15 regras)
+- CI/CD com GitHub Actions
+- Documentação arquitetural C4 Model (4 níveis)
+- 7 ADRs documentados
+
+### 🔮 Backlog Futuro (Pós-TCC)
+
+Melhorias planejadas para evolução contínua do projeto:
+
+#### Alta Prioridade
+- **Migração CDC para Debezium**
+  - Substituir polling por CDC real
+  - Latência < 1 segundo (vs 5s atual)
+  - Change streams nativos PostgreSQL
+
+- **Segurança Enterprise**
+  - Kafka com TLS 1.3 + SASL/SCRAM
+  - PostgreSQL com SSL
+  - Certificado Digital A1/A3 (eSocial)
+
+- **Backup e Disaster Recovery**
+  - Backup automatizado PostgreSQL (pg_dump diário)
+  - RPO: 1 hora, RTO: 4 horas
+  - Replicação Multi-AZ
+
+- **Integração Real eSocial**
+  - Webservice gov.br (XSD validation)
+  - Tabelas CBO/CNAE
+  - Envio eventos S-1000, S-2200, S-2300
+
+#### Média Prioridade
+- **Testes de Carga (JMeter)**
+  - Validar throughput 10.000 evt/s
+  - Teste de stress (pico: 50.000 evt/s)
+  - Relatórios de performance
+
+- **Kubernetes Deployment**
+  - Helm Charts
+  - Auto-scaling (HPA)
+  - Service Mesh (Istio)
+
+- **Integração Slack (Alertas)**
+  - Webhook Alertmanager → Slack
+  - Canal #alerts-esocial
+  - Runbooks automáticos
+
+#### Baixa Prioridade
+- **Documentação Swagger/OpenAPI**
+  - APIs REST documentadas
+  - Swagger UI
+  - Exemplos interativos
+
+- **Machine Learning**
+  - Detecção de anomalias em salários
+  - Sugestões automáticas de correção
+  - Predição de validações que falharão
 
 ---
 
