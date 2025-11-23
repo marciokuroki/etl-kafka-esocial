@@ -1449,7 +1449,7 @@ docker-compose restart postgres-db
 
 | Papel | Nome | Telefone | Email | Disponibilidade |
 |-------|------|----------|-------|-----------------|
-| **Arquiteto** | Márcio Kuroki | (91) 98807-8486 | marciokuroki@gmail.com | 24x7 |
+| **Arquiteto** | Márcio Kuroki | - | marciokuroki@gmail.com | 24x7 |
 
 ---
 
