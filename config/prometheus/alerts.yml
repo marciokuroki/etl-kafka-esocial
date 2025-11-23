@@ -1,7 +1,8 @@
 # config/prometheus/alerts.yml
 # Regras de Alerta - Pipeline ETL eSocial com Apache Kafka
-# Versão: 2.0 - Consolidada
-# Última atualização: 2025-11-22
+# Versão: 2.1 - Completa e Corrigida
+# Última atualização: 2025-11-23
+
 
 groups:
   # ========================================
@@ -43,6 +44,7 @@ groups:
                docker-compose restart producer-service
           runbook_url: "https://github.com/marciokuroki/etl-kafka-esocial/wiki/Runbook-ProducerServiceDown"
 
+
       # Alta Taxa de Erro no Producer
       - alert: ProducerHighErrorRate
         expr: |
@@ -72,6 +74,7 @@ groups:
             4. Analisar últimas mudanças no schema da origem
           runbook_url: "https://github.com/marciokuroki/etl-kafka-esocial/wiki/Runbook-ProducerHighErrorRate"
 
+
       # CDC com Latência Elevada
       - alert: CDCHighLatency
         expr: |
@@ -100,6 +103,7 @@ groups:
             4. Considerar otimizar queries do CDC
           runbook_url: "https://github.com/marciokuroki/etl-kafka-esocial/wiki/Runbook-CDCHighLatency"
 
+
       # Throughput Baixo no Producer
       - alert: ProducerLowThroughput
         expr: |
@@ -120,6 +124,7 @@ groups:
             2. Analisar latência do CDC
             3. Verificar conectividade com Kafka
           runbook_url: "https://github.com/marciokuroki/etl-kafka-esocial/wiki/Runbook-LowThroughput"
+
 
   # ========================================
   # GRUPO 2: ALERTAS CRÍTICOS DO CONSUMER
@@ -159,6 +164,7 @@ groups:
                docker-compose restart consumer-service
           runbook_url: "https://github.com/marciokuroki/etl-kafka-esocial/wiki/Runbook-ConsumerServiceDown"
 
+
       # Alta Taxa de Erro de Validação
       - alert: ConsumerHighValidationErrorRate
         expr: |
@@ -192,6 +198,7 @@ groups:
             4. Analisar padrão de erros para identificar causa raiz
           runbook_url: "https://github.com/marciokuroki/etl-kafka-esocial/wiki/Runbook-HighValidationErrorRate"
 
+
       # DLQ Acumulando (Warning)
       - alert: DLQAccumulating
         expr: |
@@ -220,7 +227,8 @@ groups:
             4. Considerar reprocessamento em lote
           runbook_url: "https://github.com/marciokuroki/etl-kafka-esocial/wiki/Runbook-DLQAccumulating"
 
-      # DLQ Crítica
+
+      # DLQ Crítica (CONTINUAÇÃO COMPLETA)
       - alert: DLQCritical
         expr: |
           dlq_events_pending{service="consumer"} > 500
@@ -240,4 +248,450 @@ groups:
             1. URGENTE: Consultar eventos DLQ:
                curl http://localhost:8082/api/v1/validation/dlq | jq
             
-            2. Identific
+            2. Identificar causa raiz dos erros:
+               curl http://localhost:8082/api/v1/validation/dlq | jq 'group_by(.errorType) | map({type: .[0].errorType, count: length}) | sort_by(.count) | reverse'
+            
+            3. Se causa raiz corrigida, reprocessar em lote:
+               for id in $(curl -s http://localhost:8082/api/v1/validation/dlq | jq -r '.[].id'); do
+                 curl -X POST http://localhost:8082/api/v1/validation/dlq/$id/retry
+                 sleep 0.5
+               done
+            
+            4. Considerar pausar Producer temporariamente:
+               docker-compose stop producer-service
+            
+            5. Após correção, reativar Producer:
+               docker-compose start producer-service
+            
+            6. Comunicar time de negócio sobre atraso no processamento
+          runbook_url: "https://github.com/marciokuroki/etl-kafka-esocial/wiki/Runbook-DLQCritical"
+
+
+      # Latência de Validação Alta
+      - alert: ConsumerHighValidationLatency
+        expr: |
+          histogram_quantile(0.95, rate(validation_duration_seconds_bucket{service="consumer"}[5m])) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          component: consumer
+          category: performance
+          team: data-engineering
+        annotations:
+          summary: "⏱️ Latência alta nas validações"
+          description: |
+            Latência P95 das validações: {{ $value }}s.
+            Limite: 500ms
+            Pode indicar gargalo no processamento.
+          action: |
+            1. Verificar carga do Consumer:
+               docker stats esocial-consumer --no-stream
+            
+            2. Analisar queries lentas no PostgreSQL:
+               docker exec esocial-postgres-db psql -U esocial_user -d esocial -c "SELECT query, mean_exec_time FROM pg_stat_statements ORDER BY mean_exec_time DESC LIMIT 10;"
+            
+            3. Verificar se há validações complexas sendo executadas
+            
+            4. Considerar otimizar validações ou adicionar índices no banco
+          runbook_url: "https://github.com/marciokuroki/etl-kafka-esocial/wiki/Runbook-HighValidationLatency"
+
+
+  # ========================================
+  # GRUPO 3: ALERTAS DO KAFKA
+  # ========================================
+  - name: kafka_alerts
+    interval: 30s
+    rules:
+      
+      # Broker Kafka Down
+      - alert: KafkaBrokerDown
+        expr: |
+          up{job="kafka-broker"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: kafka
+          category: availability
+          team: platform
+        annotations:
+          summary: "🚨 Kafka Broker indisponível"
+          description: |
+            Broker Kafka não está respondendo.
+            Instance: {{ $labels.instance }}
+            Possível perda de replicação se múltiplos brokers estiverem down.
+          action: |
+            1. Verificar status dos brokers:
+               docker ps -a | grep kafka-broker
+            
+            2. Ver logs do broker:
+               docker logs esocial-kafka-broker-1 --tail 100
+            
+            3. Verificar Zookeeper:
+               docker exec esocial-zookeeper zkCli.sh ls /brokers/ids
+            
+            4. Reiniciar broker:
+               docker-compose restart kafka-broker-1
+            
+            5. Validar ISR (In-Sync Replicas):
+               docker exec esocial-kafka-broker-1 kafka-topics --bootstrap-server localhost:9092 --describe
+          runbook_url: "https://github.com/marciokuroki/etl-kafka-esocial/wiki/Runbook-KafkaBrokerDown"
+
+
+      # Consumer Lag Alto
+      - alert: KafkaConsumerLagHigh
+        expr: |
+          kafka_consumergroup_lag{group="esocial-consumer-group"} > 1000
+        for: 5m
+        labels:
+          severity: warning
+          component: kafka
+          category: performance
+          team: data-engineering
+        annotations:
+          summary: "📊 Consumer lag alto"
+          description: |
+            Lag do consumer group está em {{ $value }} mensagens.
+            Limite: 1000 mensagens
+            Consumer não está acompanhando a produção.
+          action: |
+            1. Verificar lag detalhado:
+               docker exec esocial-kafka-broker-1 kafka-consumer-groups --bootstrap-server localhost:9092 --describe --group esocial-consumer-group
+            
+            2. Verificar se Consumer está saudável:
+               curl http://localhost:8082/actuator/health | jq
+            
+            3. Analisar throughput do Consumer:
+               curl http://localhost:8082/actuator/prometheus | grep events_consumed_total
+            
+            4. Considerar escalar Consumer (adicionar instâncias)
+          runbook_url: "https://github.com/marciokuroki/etl-kafka-esocial/wiki/Runbook-HighConsumerLag"
+
+
+      # Consumer Lag Crítico
+      - alert: KafkaConsumerLagCritical
+        expr: |
+          kafka_consumergroup_lag{group="esocial-consumer-group"} > 5000
+        for: 5m
+        labels:
+          severity: critical
+          component: kafka
+          category: performance
+          team: data-engineering
+        annotations:
+          summary: "🚨 Consumer lag CRÍTICO"
+          description: |
+            Lag CRÍTICO: {{ $value }} mensagens!
+            Sistema pode estar subdimensionado.
+          action: |
+            1. URGENTE: Verificar Consumer:
+               docker logs esocial-consumer --tail 200 | grep ERROR
+            
+            2. Escalar Consumer imediatamente:
+               docker-compose up -d --scale consumer-service=3
+            
+            3. Considerar pausar Producer temporariamente
+            
+            4. Análise pós-incidente necessária
+          runbook_url: "https://github.com/marciokuroki/etl-kafka-esocial/wiki/Runbook-CriticalConsumerLag"
+
+
+      # Under Replicated Partitions
+      - alert: KafkaUnderReplicatedPartitions
+        expr: |
+          kafka_cluster_partition_underreplicated > 0
+        for: 5m
+        labels:
+          severity: critical
+          component: kafka
+          category: data-integrity
+          team: platform
+        annotations:
+          summary: "⚠️ Partições sem replicação completa"
+          description: |
+            {{ $value }} partições estão sub-replicadas.
+            Risco de perda de dados se broker com líder cair.
+          action: |
+            1. Verificar ISR (In-Sync Replicas):
+               docker exec esocial-kafka-broker-1 kafka-topics --bootstrap-server localhost:9092 --describe --under-replicated-partitions
+            
+            2. Verificar status dos brokers:
+               docker ps | grep kafka-broker
+            
+            3. Ver logs dos brokers:
+               docker logs esocial-kafka-broker-1 --tail 100
+               docker logs esocial-kafka-broker-2 --tail 100
+               docker logs esocial-kafka-broker-3 --tail 100
+            
+            4. Se broker down, reiniciar:
+               docker-compose restart kafka-broker-X
+          runbook_url: "https://github.com/marciokuroki/etl-kafka-esocial/wiki/Runbook-UnderReplicatedPartitions"
+
+
+  # ========================================
+  # GRUPO 4: ALERTAS DO POSTGRESQL
+  # ========================================
+  - name: postgresql_alerts
+    interval: 30s
+    rules:
+      
+      # PostgreSQL Down
+      - alert: PostgreSQLDown
+        expr: |
+          up{job="postgresql"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: postgresql
+          category: availability
+          team: platform
+        annotations:
+          summary: "🚨 PostgreSQL indisponível"
+          description: |
+            Banco de dados PostgreSQL não está respondendo.
+            Instance: {{ $labels.instance }}
+          action: |
+            1. Verificar container:
+               docker ps -a | grep postgres
+            
+            2. Ver logs:
+               docker logs esocial-postgres-db --tail 100
+            
+            3. Verificar se o processo está rodando:
+               docker exec esocial-postgres-db pg_isready -U esocial_user
+            
+            4. Reiniciar PostgreSQL:
+               docker-compose restart postgres-db
+            
+            5. Validar conectividade:
+               docker exec esocial-postgres-db psql -U esocial_user -d esocial -c "SELECT 1;"
+          runbook_url: "https://github.com/marciokuroki/etl-kafka-esocial/wiki/Runbook-PostgreSQLDown"
+
+
+      # Conexões PostgreSQL Alto
+      - alert: PostgreSQLHighConnections
+        expr: |
+          pg_stat_database_numbackends{datname="esocial"} > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: postgresql
+          category: performance
+          team: platform
+        annotations:
+          summary: "⚠️ Número alto de conexões no PostgreSQL"
+          description: |
+            {{ $value }} conexões ativas no banco esocial.
+            Limite: 80 (de 100 max)
+          action: |
+            1. Ver conexões ativas:
+               docker exec esocial-postgres-db psql -U esocial_user -d esocial -c "SELECT count(*) FROM pg_stat_activity WHERE state = 'active';"
+            
+            2. Identificar queries lentas:
+               docker exec esocial-postgres-db psql -U esocial_user -d esocial -c "SELECT pid, state, query_start, query FROM pg_stat_activity WHERE state != 'idle' ORDER BY query_start;"
+            
+            3. Verificar configuração de connection pooling (HikariCP)
+            
+            4. Considerar matar queries longas (com cautela):
+               SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE state = 'active' AND query_start < NOW() - INTERVAL '10 minutes';
+          runbook_url: "https://github.com/marciokuroki/etl-kafka-esocial/wiki/Runbook-HighPostgreSQLConnections"
+
+
+      # Espaço em Disco PostgreSQL Baixo
+      - alert: PostgreSQLDiskSpaceLow
+        expr: |
+          (node_filesystem_avail_bytes{mountpoint="/var/lib/postgresql/data"} / node_filesystem_size_bytes{mountpoint="/var/lib/postgresql/data"}) * 100 < 20
+        for: 5m
+        labels:
+          severity: warning
+          component: postgresql
+          category: storage
+          team: platform
+        annotations:
+          summary: "💾 Espaço em disco baixo no PostgreSQL"
+          description: |
+            Apenas {{ $value }}% de espaço disponível.
+            Limite: 20%
+          action: |
+            1. Verificar uso de disco:
+               docker exec esocial-postgres-db df -h /var/lib/postgresql/data
+            
+            2. Ver tamanho dos bancos:
+               docker exec esocial-postgres-db psql -U esocial_user -d esocial -c "SELECT pg_database.datname, pg_size_pretty(pg_database_size(pg_database.datname)) FROM pg_database;"
+            
+            3. Executar VACUUM:
+               docker exec esocial-postgres-db psql -U esocial_user -d esocial -c "VACUUM FULL ANALYZE;"
+            
+            4. Limpar logs antigos:
+               docker exec esocial-postgres-db find /var/lib/postgresql/data/log -name "*.log" -mtime +7 -delete
+            
+            5. Se necessário, aumentar volume Docker
+          runbook_url: "https://github.com/marciokuroki/etl-kafka-esocial/wiki/Runbook-LowDiskSpace"
+
+
+  # ========================================
+  # GRUPO 5: ALERTAS DE PERFORMANCE
+  # ========================================
+  - name: performance_alerts
+    interval: 30s
+    rules:
+      
+      # CPU Alta
+      - alert: HighCPUUsage
+        expr: |
+          (100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)) > 80
+        for: 10m
+        labels:
+          severity: warning
+          component: infrastructure
+          category: performance
+          team: platform
+        annotations:
+          summary: "🔥 CPU alta detectada"
+          description: |
+            CPU em {{ $value }}% no host {{ $labels.instance }}.
+            Limite: 80%
+          action: |
+            1. Verificar processos:
+               docker stats --no-stream
+            
+            2. Identificar container consumindo CPU:
+               docker ps -q | xargs docker stats --no-stream --format "table {{.Container}}\t{{.CPUPerc}}" | sort -k 2 -r
+            
+            3. Analisar logs dos serviços de maior consumo
+            
+            4. Considerar escalar recursos ou otimizar código
+          runbook_url: "https://github.com/marciokuroki/etl-kafka-esocial/wiki/Runbook-HighCPU"
+
+
+      # Memória Alta
+      - alert: HighMemoryUsage
+        expr: |
+          (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 10m
+        labels:
+          severity: warning
+          component: infrastructure
+          category: performance
+          team: platform
+        annotations:
+          summary: "🧠 Memória alta detectada"
+          description: |
+            Memória em {{ $value }}% no host {{ $labels.instance }}.
+            Limite: 85%
+          action: |
+            1. Verificar uso de memória por container:
+               docker stats --no-stream --format "table {{.Container}}\t{{.MemUsage}}\t{{.MemPerc}}" | sort -k 3 -r
+            
+            2. Verificar se há memory leaks:
+               docker logs esocial-producer | grep -i "OutOfMemoryError"
+               docker logs esocial-consumer | grep -i "OutOfMemoryError"
+            
+            3. Analisar heap dumps (se disponível)
+            
+            4. Considerar aumentar memória ou otimizar aplicações
+          runbook_url: "https://github.com/marciokuroki/etl-kafka-esocial/wiki/Runbook-HighMemory"
+
+
+      # JVM Memory Pressure
+      - alert: JVMMemoryPressure
+        expr: |
+          (jvm_memory_used_bytes{area="heap"} / jvm_memory_max_bytes{area="heap"}) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: jvm
+          category: performance
+          team: data-engineering
+        annotations:
+          summary: "☕ JVM com pressão de memória"
+          description: |
+            Heap JVM em {{ $value }}% no serviço {{ $labels.service }}.
+            Limite: 80%
+          action: |
+            1. Verificar métricas JVM:
+               curl http://localhost:{{ $labels.port }}/actuator/metrics/jvm.memory.used | jq
+            
+            2. Ver garbage collection:
+               curl http://localhost:{{ $labels.port }}/actuator/metrics/jvm.gc.pause | jq
+            
+            3. Verificar configuração de heap:
+               docker inspect {{ $labels.container }} | jq '.[0].Config.Env' | grep JAVA_OPTS
+            
+            4. Considerar aumentar heap (-Xmx) ou otimizar código
+          runbook_url: "https://github.com/marciokuroki/etl-kafka-esocial/wiki/Runbook-JVMMemoryPressure"
+
+
+  # ========================================
+  # GRUPO 6: ALERTAS DE RECURSOS
+  # ========================================
+  - name: resource_alerts
+    interval: 1m
+    rules:
+      
+      # Container Restartando Frequentemente
+      - alert: ContainerRestartingFrequently
+        expr: |
+          rate(container_last_seen{name=~"esocial-.*"}[5m]) > 0
+        for: 10m
+        labels:
+          severity: warning
+          component: docker
+          category: stability
+          team: platform
+        annotations:
+          summary: "🔄 Container restartando frequentemente"
+          description: |
+            Container {{ $labels.name }} reiniciou {{ $value }} vezes nos últimos 5 minutos.
+          action: |
+            1. Ver histórico de restarts:
+               docker ps -a | grep {{ $labels.name }}
+            
+            2. Verificar logs:
+               docker logs {{ $labels.name }} --tail 200
+            
+            3. Verificar health checks:
+               docker inspect {{ $labels.name }} | jq '.[0].State.Health'
+            
+            4. Identificar causa raiz (OOM? Crash? Config?)
+          runbook_url: "https://github.com/marciokuroki/etl-kafka-esocial/wiki/Runbook-FrequentRestarts"
+
+
+      # Disco Raiz Quase Cheio
+      - alert: DiskSpaceCritical
+        expr: |
+          (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 10
+        for: 5m
+        labels:
+          severity: critical
+          component: infrastructure
+          category: storage
+          team: platform
+        annotations:
+          summary: "💾 DISCO CRÍTICO - Apenas {{ $value }}% disponível"
+          description: |
+            Espaço em disco criticamente baixo.
+            Sistema pode parar de funcionar!
+          action: |
+            1. URGENTE: Verificar uso de disco:
+               df -h
+            
+            2. Limpar logs Docker antigos:
+               docker system prune -a --volumes -f
+            
+            3. Limpar imagens não utilizadas:
+               docker image prune -a -f
+            
+            4. Verificar logs da aplicação:
+               du -sh /var/lib/docker/containers/*
+            
+            5. Considerar aumentar volume ou mover dados
+          runbook_url: "https://github.com/marciokuroki/etl-kafka-esocial/wiki/Runbook-CriticalDiskSpace"
+
+
+# ========================================
+# FIM DO ARQUIVO DE ALERTAS
+# ========================================
+# Total de alertas: 23
+# Grupos: 6
+# Criticidade: 10 critical, 13 warning
+# Última revisão: 2025-11-23 por Márcio Kuroki
